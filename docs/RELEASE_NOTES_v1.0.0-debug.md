@@ -46,7 +46,7 @@ E1C09C6C67FD3194FA2881B32D206CA17D9B432A54A1177689C68626F48A97D0
 - Android Lint：0 issue。
 - 已验证 UI、精确闹钟、锁屏触发、队列、Snooze、WAV 导入和模拟器重启恢复。
 
-详见 [EMULATOR_TEST_REPORT.md](EMULATOR_TEST_REPORT.md)。
+详见 [EMULATOR_TEST_REPORT.md](https://github.com/hzyyyun/misciclock2235/blob/main/docs/EMULATOR_TEST_REPORT.md)。
 
 ## 已知限制
 
@@ -55,4 +55,4 @@ E1C09C6C67FD3194FA2881B32D206CA17D9B432A54A1177689C68626F48A97D0
 - 勿扰、静音、厂商电池管理和“强行停止”仍会受系统策略影响。
 - debug 签名只适合内部测试，后续正式版本将使用独立 release 签名。
 
-当前硬件状态见 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)。
+当前硬件状态见 [DEVICE_TEST_REPORT.md](https://github.com/hzyyyun/misciclock2235/blob/main/docs/DEVICE_TEST_REPORT.md)。
