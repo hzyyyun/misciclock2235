@@ -2,6 +2,16 @@
 
 一个 Android 原生、完全离线的耳机优先闹钟。连接耳机时，应用先静音确认实际音频路由，确认输出仍在耳机后才渐入播放；耳机断开、路由不匹配或音频焦点被抢占时立即暂停，不会主动改走扬声器。
 
+## 手机直接下载
+
+Android 9.0 及以上设备可直接下载 debug 测试版：
+
+- [直接下载 APK](https://github.com/hzyyyun/misciclock2235/releases/download/v1.0.0-debug/MusicClock-1.0.0-debug.apk)
+- [查看 GitHub 预发布页面](https://github.com/hzyyyun/misciclock2235/releases/tag/v1.0.0-debug)
+- [Release 说明](docs/RELEASE_NOTES_v1.0.0-debug.md)
+
+该版本使用 debug 签名，且真机耳机路由验收尚未完成，不应标记为正式稳定版。
+
 ## 当前交付
 
 - 完整 Kotlin / Jetpack Compose Android 工程。
