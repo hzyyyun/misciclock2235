@@ -1,0 +1,16 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+/.kotlin
+/build
+/captures
+.externalNativeBuild
+.cxx
+app/build
+*.apk
+!dist/MusicClock-1.0.0-debug.apk
+.tooling/
+local.properties
+
+
