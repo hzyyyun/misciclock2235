@@ -18,11 +18,8 @@ class AudioRouteController(context: Context) {
 
     fun connectedHeadset(): AudioDeviceInfo? {
         val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-        val headsets = outputs.filter(::isHeadset)
-        if (headsets.isEmpty()) return null
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val preferred: List<AudioDeviceInfo> = runCatching {
+        val preferred: List<AudioDeviceInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            runCatching {
                 audioManager.getAudioDevicesForAttributes(
                     android.media.AudioAttributes.Builder()
                         .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
@@ -30,9 +27,23 @@ class AudioRouteController(context: Context) {
                         .build(),
                 )
             }.getOrDefault(emptyList<AudioDeviceInfo>())
-            preferred.firstOrNull(::isHeadset)?.let { return it }
+        } else {
+            emptyList()
         }
-        return headsets.first()
+        val preferredIds = preferred.mapTo(mutableSetOf()) { it.id }
+        val target = HeadsetRoutePolicy.selectTarget(
+            outputs.map { device ->
+                AudioOutputSnapshot(
+                    deviceId = device.id,
+                    type = device.type,
+                    label = device.productName.toString().ifBlank {
+                        defaultHeadsetLabel(device.type)
+                    },
+                    preferred = device.id in preferredIds,
+                )
+            },
+        ) ?: return null
+        return outputs.firstOrNull { it.id == target.deviceId }
     }
 
     fun currentHeadsetTarget(): HeadsetTarget? = connectedHeadset()?.let { device ->
@@ -43,22 +54,7 @@ class AudioRouteController(context: Context) {
         )
     }
 
-    fun isHeadset(device: AudioDeviceInfo): Boolean = when (device.type) {
-        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-        AudioDeviceInfo.TYPE_WIRED_HEADSET,
-        AudioDeviceInfo.TYPE_USB_HEADSET,
-        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
-        AudioDeviceInfo.TYPE_HEARING_AID,
-        -> true
-        else -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                device.type == AudioDeviceInfo.TYPE_BLE_HEADSET
-            } else {
-                false
-            }
-        }
-    }
+    fun isHeadset(device: AudioDeviceInfo): Boolean = HeadsetRoutePolicy.isHeadsetType(device.type)
 
     fun isDeviceAvailable(deviceId: Int): Boolean =
         audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { it.id == deviceId }

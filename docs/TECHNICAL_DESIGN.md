@@ -188,6 +188,13 @@ Android 13+ 优先使用 `getAudioDevicesForAttributes()` 查询系统建议媒�
 - 勿扰、静音、精确权限拒绝、电池限制。
 - 多个同时触发、Snooze、10 分钟自动静音。
 
+### 模拟器
+
+- `scripts/run-emulator-acceptance.ps1` 启动 API 35 Pixel 6 AVD。
+- connected tests 覆盖 UI CRUD、后台/锁屏精确触发、队列、Snooze 和 WAV 导入。
+- `VisualAcceptanceTest` 生成首页、编辑页和响铃页截图。
+- 验收产物和未覆盖项写入 `docs/EMULATOR_TEST_REPORT.md`。
+
 ## 11. 后续可扩展项
 
 - 铃声波形预览和响铃音量自动衰减。

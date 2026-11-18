@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +55,7 @@ import com.musicclock.alarm.core.PermissionStatus
 import com.musicclock.alarm.data.AlarmEntity
 import com.musicclock.alarm.ui.HomeUiState
 import com.musicclock.alarm.ui.HomeViewModel
+import com.musicclock.alarm.ui.UiTestTags
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -97,7 +99,10 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onOpenSettings) {
+                    IconButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier.testTag(UiTestTags.HOME_SETTINGS),
+                    ) {
                         Icon(Icons.Outlined.Settings, contentDescription = "设置与隐私")
                     }
                 },
@@ -108,6 +113,7 @@ fun HomeScreen(
                 onClick = onAddAlarm,
                 icon = { Icon(Icons.Outlined.Alarm, contentDescription = null) },
                 text = { Text("新建闹钟") },
+                modifier = Modifier.testTag(UiTestTags.HOME_ADD_ALARM),
             )
         },
     ) { innerPadding ->
@@ -245,7 +251,8 @@ private fun AlarmRow(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpen),
+            .clickable(onClick = onOpen)
+            .testTag(UiTestTags.alarmRow(alarm.id)),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (alarm.enabled) {
@@ -288,7 +295,11 @@ private fun AlarmRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(checked = alarm.enabled, onCheckedChange = onToggle)
+            Switch(
+                checked = alarm.enabled,
+                onCheckedChange = onToggle,
+                modifier = Modifier.testTag(UiTestTags.alarmSwitch(alarm.id)),
+            )
         }
     }
 }
@@ -319,7 +330,9 @@ private fun EmptyAlarmState(onAddAlarm: () -> Unit) {
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.clickable(onClick = onAddAlarm),
+                modifier = Modifier
+                    .clickable(onClick = onAddAlarm)
+                    .testTag(UiTestTags.HOME_EMPTY_ADD),
             ) {
                 Text(
                     "新建闹钟",

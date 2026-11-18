@@ -1,0 +1,77 @@
+captured_at=2026-11-18 17:29:45
+notification_match=重启验收
+ACTIVITY MANAGER SERVICES (dumpsys activity services)
+  User 0 active services:
+  * ServiceRecord{74528f4 u0 com.musicclock.alarm/.ring.AlarmRingService c:com.musicclock.alarm}
+    intent={act=com.musicclock.alarm.action.TRIGGER cmp=com.musicclock.alarm/.ring.AlarmRingService}
+    packageName=com.musicclock.alarm
+    processName=com.musicclock.alarm
+    targetSdkVersion=35
+    baseDir=/data/app/~~kiJoAdehKxgnZeQCzTYy1Q==/com.musicclock.alarm-Mbptp5Jvsh1tZ-tkqOG4zA==/base.apk
+    dataDir=/data/user/0/com.musicclock.alarm
+    app=ProcessRecord{8d349ae 2698:com.musicclock.alarm/u0a223}
+    useNewWiuLogic_forCapabilities()=true
+    useNewWiuLogic_forStart()=true
+    useNewBfslLogic()=true
+    mAllowWiu_noBinding=DENIED
+    mAllowWiu_inBindService=DENIED
+    mAllowWiu_byBindings=DENIED
+    getFgsAllowWiu_legacy=DENIED
+    getFgsAllowWiu_new=DENIED
+    getFgsAllowWiu_forStart=DENIED
+    getFgsAllowWiu_forCapabilities=DENIED
+    allowUiJobScheduling=false
+    recentCallingPackage=com.musicclock.alarm
+    recentCallingUid=10223
+    mAllowStart_noBinding=ALARM_MANAGER_ALARM_CLOCK
+    mAllowStart_inBindService=DENIED
+    mAllowStart_byBindings=DENIED
+    getFgsAllowStart_legacy=ALARM_MANAGER_ALARM_CLOCK
+    getFgsAllowStart_new=ALARM_MANAGER_ALARM_CLOCK
+    getFgsAllowStart=ALARM_MANAGER_ALARM_CLOCK
+    startForegroundCount=1
+    infoAllowStartForeground=[callingPackage: com.musicclock.alarm; callingUid: 10223; uidState: RCVR; uidBFSL: n/a; intent: Intent { act=com.musicclock.alarm.action.TRIGGER cmp=com.musicclock.alarm/.ring.AlarmRingService (has extras) }; code:ALARM_MANAGER_ALARM_CLOCK; tempAllowListReason:<67d44e2 com.musicclock.alarm.TRIGGER_OCCURRENCE/u0,reasonCode:ALARM_MANAGER_ALARM_CLOCK,duration:10000,callingUid:10223>; targetSdkVersion:35; callerTargetSdkVersion:35; startForegroundCount:0; bindFromPackage:null: isBindService:false]
+    isForeground=true foregroundId=1001 types=0x00000002 foregroundNoti=Notification(channel=alarm_ringing_v1 shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=ONGOING_EVENT|ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE|HIGH_PRIORITY color=0xff17392f category=alarm actions=3 vis=PUBLIC)
+    createTime=-5s926ms startingBgTimeout=--
+    lastActivity=-5s924ms restartTime=-5s924ms createdFromFg=false
+    startRequested=true delayedStop=false stopIfKilled=false callStart=true lastStartId=1
+ startCommandResult=1
+
+
+    Notification List:
+>     NotificationRecord(0x09655a4b: pkg=com.musicclock.alarm user=UserHandle{0} id=1001 tag=null importance=4 key=0|com.musicclock.alarm|1001|null|10223: Notification(channel=alarm_ringing_v1 shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=ONGOING_EVENT|ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE|HIGH_PRIORITY color=0xff17392f category=alarm actions=3 vis=PUBLIC))
+        uid=10223 userId=0
+>       opPkg=com.musicclock.alarm
+>       icon=Icon(typ=RESOURCE pkg=com.musicclock.alarm id=0x7f040007)
+        flags=ONGOING_EVENT|ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE|HIGH_PRIORITY
+        originalFlags=ONGOING_EVENT|ONLY_ALERT_ONCE|FOREGROUND_SERVICE|HIGH_PRIORITY
+        pri=2
+>       key=0|com.musicclock.alarm|1001|null|10223
+        seen=true
+>       groupKey=0|com.musicclock.alarm|1001|null|10223
+        notification=
+>             fullscreenIntent=PendingIntent{2ac7c28: PendingIntentRecord{569e4db com.musicclock.alarm startActivity (allowlist: de2cab6:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+>             contentIntent=PendingIntent{353d41: PendingIntentRecord{569e4db com.musicclock.alarm startActivity (allowlist: de2cab6:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+              deleteIntent=null
+              number=0
+              actions={
+>                 [0] "延后 5 分钟" -> PendingIntent{9b12e6: PendingIntentRecord{88cb251 com.musicclock.alarm startService (allowlist: de2cab6:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+>                 [1] "关闭闹钟" -> PendingIntent{5ad5027: PendingIntentRecord{e335b78 com.musicclock.alarm startService (allowlist: de2cab6:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+>                 [2] "重试耳机" -> PendingIntent{e6132d4: PendingIntentRecord{bda3849 com.musicclock.alarm startService (allowlist: de2cab6:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+                }
+              extras={
+>                 android.title=String (重启验收)
+                  android.reduced.images=Boolean (true)
+                  android.subText=null
+                  android.progressMax=Integer (0)
+>                 android.appInfo=ApplicationInfo (ApplicationInfo{d76c7d com.musicclock.alarm})
+                  android.showWhen=Boolean (true)
+                  android.largeIcon=null
+        AppSettings: com.android.keychain (1000) fixedImportance=true
+>       AppSettings: com.musicclock.alarm (10223) importance=DEFAULT userSet=false
+          NotificationChannel{mId='alarm_status_v1', mName=闹钟状态, mDescription=hasDescription , mImportance=2, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=null, mLights=false, mLightColor=0, mVibrationPattern=null, mVibrationEffect=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=false, mOriginalImp=2, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false, mLastNotificationUpdateTimeMs=0}
+          NotificationChannel{mId='alarm_ringing_v1', mName=闹钟响铃, mDescription=hasDescription , mImportance=4, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=null, mLights=false, mLightColor=0, mVibrationPattern=null, mVibrationEffect=null, mUserLockedFields=0, mUserVisibleTaskShown=true, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=false, mOriginalImp=4, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false, mLastNotificationUpdateTimeMs=0}
+      AggregatedStats{
+>       key='com.musicclock.alarm',
+        numEnqueuedByApp=3,
+        numPostedByApp=1,

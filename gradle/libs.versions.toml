@@ -16,6 +16,9 @@ espresso = "3.6.1"
 robolectric = "4.14.1"
 truth = "1.4.4"
 androidxTestCore = "1.6.1"
+androidxTestRunner = "1.6.2"
+androidxTestRules = "1.6.1"
+uiautomator = "2.3.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -44,6 +47,9 @@ androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", vers
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
 androidx-test-core = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
+androidx-test-rules = { module = "androidx.test:rules", version.ref = "androidxTestRules" }
+androidx-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 
 [plugins]

@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +44,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.musicclock.alarm.ui.theme.MusicClockTheme
+import com.musicclock.alarm.ui.UiTestTags
 
 class RingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -163,7 +165,8 @@ private fun RingContent(onClose: () -> Unit) {
                         onClick = { send(AlarmRingService.ACTION_RETRY_AUDIO) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
+                            .height(52.dp)
+                            .testTag(UiTestTags.RING_RETRY),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = Color(0xFFDDEAE4),
@@ -177,7 +180,8 @@ private fun RingContent(onClose: () -> Unit) {
                         onClick = { send(AlarmRingService.ACTION_SNOOZE) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(58.dp),
+                            .height(58.dp)
+                            .testTag(UiTestTags.RING_SNOOZE),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFF4C95D),
@@ -191,7 +195,8 @@ private fun RingContent(onClose: () -> Unit) {
                     onClick = { send(AlarmRingService.ACTION_DISMISS) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp),
+                        .height(54.dp)
+                        .testTag(UiTestTags.RING_DISMISS),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF315448),

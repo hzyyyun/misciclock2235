@@ -75,15 +75,17 @@ class RingtoneImporter(private val context: Context) {
     }
 
     private fun queryDisplayName(uri: Uri): String? {
-        return context.contentResolver.query(
-            uri,
-            arrayOf(OpenableColumns.DISPLAY_NAME),
-            null,
-            null,
-            null,
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
-        }
+        return runCatching {
+            context.contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        }.getOrNull() ?: uri.lastPathSegment
     }
 
     private fun validateAndGetDuration(file: File): Long? {

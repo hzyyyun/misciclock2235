@@ -11,7 +11,8 @@
 - 技术设计：`docs/TECHNICAL_DESIGN.md`。
 - 权限说明：`docs/PERMISSIONS.md`。
 - 验收用例：`docs/ACCEPTANCE_TESTS.md`。
-- 已通过 13 个 JVM/Robolectric/Compose 启动测试及 Android Lint。
+- 模拟器验收：`docs/EMULATOR_TEST_REPORT.md`。
+- 已通过 17 个 JVM/Robolectric 测试、7 个 API 35 模拟器测试及 Android Lint。
 
 ## 环境要求
 
@@ -44,6 +45,13 @@ macOS / Linux：
 
 ```powershell
 .\gradlew.bat :app:testDebugUnitTest :app:lintDebug
+```
+
+完整 API 35 模拟器验收：
+
+```powershell
+.\scripts\setup-emulator.ps1
+.\scripts\run-emulator-acceptance.ps1
 ```
 
 生成 APK：

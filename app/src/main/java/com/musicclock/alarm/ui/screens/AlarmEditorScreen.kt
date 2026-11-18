@@ -51,12 +51,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.musicclock.alarm.data.ScheduleType
 import com.musicclock.alarm.ui.AlarmEditorViewModel
+import com.musicclock.alarm.ui.UiTestTags
 import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,7 +90,10 @@ fun AlarmEditorScreen(
                 },
                 actions = {
                     if (state.alarmId > 0) {
-                        IconButton(onClick = { showDeleteConfirmation = true }) {
+                        IconButton(
+                            onClick = { showDeleteConfirmation = true },
+                            modifier = Modifier.testTag(UiTestTags.EDITOR_DELETE),
+                        ) {
                             Icon(Icons.Outlined.Delete, contentDescription = "删除闹钟")
                         }
                     }
@@ -152,7 +157,8 @@ fun AlarmEditorScreen(
                             state.minute,
                             DateFormat.is24HourFormat(context),
                         ).show()
-                    },
+                    }
+                    .testTag(UiTestTags.EDITOR_TIME),
             ) {
                 Column(
                     modifier = Modifier.padding(vertical = 22.dp),
@@ -180,7 +186,9 @@ fun AlarmEditorScreen(
                 label = { Text("名称") },
                 placeholder = { Text("例如：起床") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(UiTestTags.EDITOR_LABEL),
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -192,6 +200,7 @@ fun AlarmEditorScreen(
                             viewModel.update { it.copy(scheduleType = ScheduleType.ONE_SHOT) }
                         },
                         label = { Text("仅一次") },
+                        modifier = Modifier.testTag(UiTestTags.EDITOR_ONE_SHOT),
                     )
                     FilterChip(
                         selected = state.scheduleType == ScheduleType.WEEKLY,
@@ -204,6 +213,7 @@ fun AlarmEditorScreen(
                             }
                         },
                         label = { Text("每周") },
+                        modifier = Modifier.testTag(UiTestTags.EDITOR_WEEKLY),
                     )
                 }
                 if (state.scheduleType == ScheduleType.WEEKLY) {
@@ -223,6 +233,7 @@ fun AlarmEditorScreen(
                                     }
                                 },
                                 label = { Text(label) },
+                                modifier = Modifier.testTag(UiTestTags.weekday(index)),
                             )
                         }
                     }
@@ -232,7 +243,8 @@ fun AlarmEditorScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showRingtonePicker = true },
+                    .clickable { showRingtonePicker = true }
+                    .testTag(UiTestTags.EDITOR_RINGTONE),
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(8.dp),
             ) {
@@ -268,6 +280,7 @@ fun AlarmEditorScreen(
                     title = "震动提醒",
                     description = "响铃期间循环震动",
                     checked = state.vibrationEnabled,
+                    testTag = UiTestTags.EDITOR_VIBRATION,
                     onCheckedChange = { checked ->
                         viewModel.update { it.copy(vibrationEnabled = checked) }
                     },
@@ -277,6 +290,7 @@ fun AlarmEditorScreen(
                     title = "延后 5 分钟",
                     description = "响铃页显示 Snooze 按钮",
                     checked = state.snoozeEnabled,
+                    testTag = UiTestTags.EDITOR_SNOOZE,
                     onCheckedChange = { checked ->
                         viewModel.update { it.copy(snoozeEnabled = checked) }
                     },
@@ -286,6 +300,7 @@ fun AlarmEditorScreen(
                     title = "启用闹钟",
                     description = "关闭后保留设置但不触发",
                     checked = state.enabled,
+                    testTag = UiTestTags.EDITOR_ENABLED,
                     onCheckedChange = { checked ->
                         viewModel.update { it.copy(enabled = checked) }
                     },
@@ -297,7 +312,8 @@ fun AlarmEditorScreen(
                 enabled = !state.saving,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
+                    .height(52.dp)
+                    .testTag(UiTestTags.EDITOR_SAVE),
                 shape = RoundedCornerShape(8.dp),
             ) {
                 Text(if (state.saving) "保存中…" else "保存闹钟")
@@ -342,7 +358,9 @@ fun AlarmEditorScreen(
                             showRingtonePicker = false
                             filePicker.launch(arrayOf("audio/*", "application/ogg"))
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(UiTestTags.EDITOR_IMPORT),
                     ) {
                         Text("从本地导入音频")
                     }
@@ -385,12 +403,19 @@ private fun ToggleRow(
     title: String,
     description: String,
     checked: Boolean,
+    testTag: String,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = { Text(description) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange) },
+        trailingContent = {
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                modifier = Modifier.testTag(testTag),
+            )
+        },
     )
 }
 

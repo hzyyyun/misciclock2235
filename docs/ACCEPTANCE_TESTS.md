@@ -4,11 +4,19 @@
 
 - `OccurrenceCalculatorTest`：每周触发、当天未来触发、禁用/过期单次、夏令时、单次跨天。
 - `AppRepositoryRoomTest`：多实例串行排队、删除闹钟清理实例。
+- `HeadsetRoutePolicyTest`：扬声器排除、首选耳机、无耳机和耳机类型识别。
 - `ManifestPrivacyTest`：无 INTERNET、自动备份关闭。
 - `BuiltInToneGeneratorTest`：内置提示音为有效 WAV。
+- `MainActivitySmokeTest`：Compose 应用可启动。
+- API 35 connected tests：UI CRUD、后台精确触发、锁屏触发、多实例队列、Snooze、WAV 导入和截图。
 - Android Lint：0 error。
 
-当前自动化结果：5 个测试套件、13 个测试、0 failure、0 error。
+当前自动化结果：
+
+- JVM：6 个测试套件、17 个测试、0 failure、0 error。
+- API 35 模拟器：7 个测试、0 failure。
+
+模拟器详细结果见 `docs/EMULATOR_TEST_REPORT.md`。
 
 ## 2. 真机验收矩阵
 

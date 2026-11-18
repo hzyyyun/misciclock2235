@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -55,6 +56,7 @@ import com.musicclock.alarm.audio.AudioRouteController
 import com.musicclock.alarm.core.AppPermissionStatus
 import com.musicclock.alarm.core.PermissionStatus
 import com.musicclock.alarm.ui.SettingsViewModel
+import com.musicclock.alarm.ui.UiTestTags
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -164,6 +166,7 @@ fun SettingsScreen(
                     },
                     valueRange = 10f..80f,
                     steps = 69,
+                    modifier = Modifier.testTag(UiTestTags.SETTINGS_VOLUME),
                 )
                 Text(
                     "仅限制应用内部播放增益，不修改手机系统音量。",
