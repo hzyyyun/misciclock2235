@@ -1,6 +1,7 @@
 # MusicClock 1.0.0 Debug Preview
 
-> 这是 debug 签名的测试预发布，不是正式稳定版。蓝牙/有线耳机真机硬件验收尚未完成。
+> 这是 debug 签名的测试预发布，不是正式稳定版。蓝牙耳机基础场景已通过，
+> 但有线耳机及完整硬件验收仍未完成。
 
 ## 直接下载
 
@@ -45,12 +46,14 @@ E1C09C6C67FD3194FA2881B32D206CA17D9B432A54A1177689C68626F48A97D0
 - 7 个 API 35 模拟器设备测试通过。
 - Android Lint：0 issue。
 - 已验证 UI、精确闹钟、锁屏触发、队列、Snooze、WAV 导入和模拟器重启恢复。
+- 真机 PARTIAL PASS：蓝牙耳机连接播放、断连后无扬声器输出、未连接耳机默认播放。
+- 有线耳机、Snooze、队列、本地文件、真机重启和勿扰模式仍为 `NOT RUN`。
 
 详见 [EMULATOR_TEST_REPORT.md](https://github.com/hzyyyun/misciclock2235/blob/main/docs/EMULATOR_TEST_REPORT.md)。
 
 ## 已知限制
 
-- 未完成真实蓝牙/有线耳机、扬声器隔离、震动触感和 OEM 后台策略验收。
+- 蓝牙耳机基础播放与断连静音已通过；有线耳机、震动触感和 OEM 后台策略仍未完成。
 - Android 无法保证第三方应用绝对控制音频路由；应用采用失败关闭策略。
 - 勿扰、静音、厂商电池管理和“强行停止”仍会受系统策略影响。
 - debug 签名只适合内部测试，后续正式版本将使用独立 release 签名。

@@ -10,7 +10,8 @@ Android 9.0 及以上设备可直接下载 debug 测试版：
 - [查看 GitHub 预发布页面](https://github.com/hzyyyun/misciclock2235/releases/tag/v1.0.0-debug)
 - [Release 说明](docs/RELEASE_NOTES_v1.0.0-debug.md)
 
-该版本使用 debug 签名，且真机耳机路由验收尚未完成，不应标记为正式稳定版。
+该版本使用 debug 签名。蓝牙耳机连接播放、断连静音和无耳机播放已在真机通过基础验证，
+但有线耳机及完整硬件矩阵尚未完成，因此不应标记为正式稳定版。
 
 ## 当前交付
 
