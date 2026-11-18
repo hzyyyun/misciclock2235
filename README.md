@@ -54,6 +54,16 @@ macOS / Linux：
 .\scripts\run-emulator-acceptance.ps1
 ```
 
+连接 Android 真机并准备好蓝牙/有线耳机后执行：
+
+```powershell
+.\scripts\run-device-acceptance.ps1
+```
+
+脚本会拒绝模拟器、安装 APK、授予所需权限，并在
+`docs/artifacts/device/<timestamp>/` 生成设备信息、截图、Logcat 和待填写的
+`summary.md`。当前硬件状态见 `docs/DEVICE_TEST_REPORT.md`。
+
 生成 APK：
 
 ```text
