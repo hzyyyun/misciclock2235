@@ -68,6 +68,17 @@ interface AlarmDao {
     @Query("UPDATE occurrences SET state = :state WHERE id = :id")
     suspend fun updateOccurrenceState(id: String, state: OccurrenceState)
 
+    @Query("UPDATE occurrences SET state = :state, ringStartedAtMillis = :ringStartedAtMillis, autoStopAtMillis = :autoStopAtMillis WHERE id = :id")
+    suspend fun updateOccurrenceRingState(
+        id: String,
+        state: OccurrenceState,
+        ringStartedAtMillis: Long,
+        autoStopAtMillis: Long,
+    )
+
+    @Query("UPDATE occurrences SET ringStartedAtMillis = NULL, autoStopAtMillis = NULL WHERE id = :id")
+    suspend fun clearOccurrenceRingTiming(id: String)
+
     @Query("UPDATE occurrences SET state = :state WHERE state = :fromState")
     suspend fun updateAllOccurrencesState(fromState: OccurrenceState, state: OccurrenceState)
 

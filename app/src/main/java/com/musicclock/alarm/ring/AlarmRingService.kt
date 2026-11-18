@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.ServiceCompat
 import com.musicclock.alarm.MusicClockApplication
 import com.musicclock.alarm.alarm.AlarmScheduler
@@ -19,6 +20,7 @@ import com.musicclock.alarm.data.AppRepository
 import com.musicclock.alarm.data.OccurrenceEntity
 import com.musicclock.alarm.data.OccurrenceKind
 import com.musicclock.alarm.data.OccurrenceState
+import com.musicclock.alarm.data.RingSessionPolicy
 import com.musicclock.alarm.data.ScheduleType
 import com.musicclock.alarm.data.SettingsRepository
 import java.io.File
@@ -87,9 +89,11 @@ class AlarmRingService : Service() {
             }
 
             ACTION_RETRY_AUDIO -> {
-                activeOccurrence?.let { occurrence ->
-                    activeAlarm?.let { alarm ->
-                        startRing(occurrence, alarm, retry = true)
+                serviceScope.launch {
+                    activeOccurrence?.let { occurrence ->
+                        activeAlarm?.let { alarm ->
+                            startRing(occurrence, alarm, retry = true)
+                        }
                     }
                 }
             }
@@ -168,13 +172,26 @@ class AlarmRingService : Service() {
         }
     }
 
-    private fun startRing(
+    private suspend fun startRing(
         occurrence: OccurrenceEntity,
         alarm: AlarmEntity,
         retry: Boolean = false,
         useBuiltIn: Boolean = false,
     ) {
-        activeOccurrence = occurrence
+        val timedOccurrence = repository.ensureRingTiming(occurrence)
+        val now = System.currentTimeMillis()
+        val autoStopAt = timedOccurrence.autoStopAtMillis
+            ?: RingSessionPolicy.deadlineFrom(now)
+        if (autoStopAt <= now) {
+            expireOccurrence(
+                occurrence = timedOccurrence,
+                alarm = alarm,
+                reason = "deadline elapsed before playback",
+            )
+            return
+        }
+
+        activeOccurrence = timedOccurrence
         activeAlarm = alarm
         timeoutJob?.cancel()
         player.stop()
@@ -185,7 +202,7 @@ class AlarmRingService : Service() {
         val routeLabel = headset?.productName?.toString()?.ifBlank { "已连接耳机" } ?: "未连接耳机"
         RingSessionStore.update(
             RingUiState(
-                occurrenceId = occurrence.id,
+                occurrenceId = timedOccurrence.id,
                 alarmLabel = alarm.label,
                 hour = alarm.hour,
                 minute = alarm.minute,
@@ -200,30 +217,40 @@ class AlarmRingService : Service() {
 
         serviceScope.launch {
             val maxVolume = settings.maxVolumePercent.first() / 100f
-            if (activeOccurrence?.id != occurrence.id) return@launch
+            if (activeOccurrence?.id != timedOccurrence.id) return@launch
             val soundFile = resolveSoundFile(alarm, useBuiltIn)
             if (soundFile == null) {
                 onDecodeFailure("铃声文件不存在或无法读取")
                 return@launch
             }
-            if (activeOccurrence?.id != occurrence.id) return@launch
-            player.play(soundFile, routeController.connectedHeadset(), maxVolume) { event ->
-                onPlaybackEvent(event, alarm)
+            if (activeOccurrence?.id != timedOccurrence.id) return@launch
+            val remaining = (autoStopAt - System.currentTimeMillis()).coerceAtLeast(0L)
+            player.play(
+                file = soundFile,
+                headset = routeController.connectedHeadset(),
+                maxGain = maxVolume,
+                maxDurationMillis = remaining,
+            ) { event ->
+                onPlaybackEvent(event, alarm, timedOccurrence.id)
             }
         }
 
         timeoutJob = serviceScope.launch {
-            delay(AUTO_STOP_MILLIS)
-            if (activeOccurrence?.id == occurrence.id) {
-                RingSessionStore.patch { it.copy(audioStatus = "已自动静音", autoStopped = true) }
-                repository.setOccurrenceState(occurrence.id, OccurrenceState.MISSED)
-                notifications.notifyStatus(
-                    "闹钟已自动静音",
-                    "${alarm.label.ifBlank { "闹钟" }}已响铃 10 分钟，请手动关闭或检查是否错过。",
+            val remaining = (autoStopAt - System.currentTimeMillis()).coerceAtLeast(0L)
+            delay(remaining)
+            if (activeOccurrence?.id == timedOccurrence.id) {
+                expireOccurrence(
+                    occurrence = timedOccurrence,
+                    alarm = alarm,
+                    reason = "watchdog deadline reached",
                 )
-                finishActive(promoteNext = true)
             }
         }
+        Log.i(
+            TAG,
+            "Ring started occurrence=${timedOccurrence.id} startedAt=${timedOccurrence.ringStartedAtMillis} " +
+                "autoStopAt=$autoStopAt remainingMillis=${autoStopAt - now}",
+        )
     }
 
     private suspend fun resolveSoundFile(alarm: AlarmEntity, useBuiltIn: Boolean): File? {
@@ -236,7 +263,11 @@ class AlarmRingService : Service() {
         return runCatching { BuiltInToneGenerator.ensure(this) }.getOrNull()
     }
 
-    private fun onPlaybackEvent(event: PlaybackEvent, alarm: AlarmEntity) {
+    private fun onPlaybackEvent(
+        event: PlaybackEvent,
+        alarm: AlarmEntity,
+        occurrenceId: String,
+    ) {
         when (event) {
             is PlaybackEvent.Started -> {
                 RingSessionStore.patch {
@@ -269,7 +300,38 @@ class AlarmRingService : Service() {
             }
 
             is PlaybackEvent.DecodeError -> onDecodeFailure(event.message)
+
+            is PlaybackEvent.TimedOut -> {
+                serviceScope.launch {
+                    val occurrence = repository.getOccurrence(occurrenceId) ?: return@launch
+                    expireOccurrence(
+                        occurrence = occurrence,
+                        alarm = alarm,
+                        reason = event.reason,
+                    )
+                }
+            }
         }
+    }
+
+    private suspend fun expireOccurrence(
+        occurrence: OccurrenceEntity,
+        alarm: AlarmEntity,
+        reason: String,
+    ) {
+        if (activeOccurrence?.id != occurrence.id && occurrence.state != OccurrenceState.RINGING) {
+            return
+        }
+        Log.w(TAG, "Ring expired occurrence=${occurrence.id} reason=$reason")
+        player.stop()
+        vibration.stop()
+        repository.setOccurrenceState(occurrence.id, OccurrenceState.MISSED)
+        RingSessionStore.patch { it.copy(audioStatus = "已自动静音", autoStopped = true) }
+        notifications.notifyStatus(
+            "闹钟已自动静音",
+            "${alarm.label.ifBlank { "闹钟" }}已达到 10 分钟响铃上限，请检查是否错过。",
+        )
+        finishActive(promoteNext = true)
     }
 
     private fun onDecodeFailure(message: String) {
@@ -288,8 +350,16 @@ class AlarmRingService : Service() {
                 val maxVolume = settings.maxVolumePercent.first() / 100f
                 if (activeOccurrence?.id != fallbackOccurrenceId) return@launch
                 val fallback = resolveSoundFile(alarm, useBuiltIn = true) ?: return@launch
-                player.play(fallback, routeController.connectedHeadset(), maxVolume) { event ->
-                    onPlaybackEvent(event, alarm)
+                val deadline = activeOccurrence?.autoStopAtMillis
+                    ?: RingSessionPolicy.deadlineFrom(System.currentTimeMillis())
+                val remaining = (deadline - System.currentTimeMillis()).coerceAtLeast(0L)
+                player.play(
+                    file = fallback,
+                    headset = routeController.connectedHeadset(),
+                    maxGain = maxVolume,
+                    maxDurationMillis = remaining,
+                ) { event ->
+                    onPlaybackEvent(event, alarm, fallbackOccurrenceId)
                 }
             }
         } else {
@@ -306,12 +376,14 @@ class AlarmRingService : Service() {
         }
     }
 
-    private suspend fun snooze(occurrenceId: String?) {
+    private suspend fun snooze(occurrenceId: String?) = triggerMutex.withLock {
         val occurrence = activeOccurrence
-        if (occurrence == null || occurrence.id != occurrenceId) return
-        val alarm = activeAlarm ?: return
-        if (!alarm.snoozeEnabled) return
+        if (occurrence == null || occurrence.id != occurrenceId) return@withLock
+        val alarm = activeAlarm ?: return@withLock
+        if (!alarm.snoozeEnabled) return@withLock
 
+        player.stop()
+        vibration.stop()
         repository.setOccurrenceState(occurrence.id, OccurrenceState.SNOOZED)
         scheduler.scheduleSnooze(
             alarmId = occurrence.alarmId,
@@ -321,17 +393,31 @@ class AlarmRingService : Service() {
         finishActive(promoteNext = true)
     }
 
-    private suspend fun dismiss(occurrenceId: String?) {
-        val occurrence = activeOccurrence
-        if (occurrence == null || occurrence.id != occurrenceId) {
+    private suspend fun dismiss(occurrenceId: String?) = triggerMutex.withLock {
+        val current = activeOccurrence
+        val target = occurrenceId?.let { repository.getOccurrence(it) }
+        if (current == null) {
             if (occurrenceId != null) {
                 repository.setOccurrenceState(occurrenceId, OccurrenceState.DISMISSED)
             }
             stopIfIdle()
-            return
+            return@withLock
         }
-        repository.setOccurrenceState(occurrence.id, OccurrenceState.DISMISSED)
-        finishActive(promoteNext = true)
+
+        val dismissesCurrent = occurrenceId == null ||
+            occurrenceId == current.id ||
+            target?.state == OccurrenceState.RINGING
+        if (dismissesCurrent) {
+            player.stop()
+            vibration.stop()
+            repository.setOccurrenceState(current.id, OccurrenceState.DISMISSED)
+            Log.i(TAG, "Ring dismissed occurrence=${current.id}")
+            finishActive(promoteNext = true)
+        } else if (target?.state == OccurrenceState.QUEUED ||
+            target?.state == OccurrenceState.SCHEDULED
+        ) {
+            repository.setOccurrenceState(target.id, OccurrenceState.DISMISSED)
+        }
     }
 
     private fun finishActive(promoteNext: Boolean) {
@@ -369,6 +455,8 @@ class AlarmRingService : Service() {
 
     private fun stopIfIdle() {
         if (activeOccurrence == null) {
+            player.stop()
+            vibration.stop()
             RingSessionStore.update(null)
             stopForeground(Service.STOP_FOREGROUND_REMOVE)
             foregroundStarted = false
@@ -425,7 +513,7 @@ class AlarmRingService : Service() {
         const val EXTRA_OCCURRENCE_ID = "occurrence_id"
 
         const val SNOOZE_MILLIS = 5 * 60 * 1000L
-        const val AUTO_STOP_MILLIS = 10 * 60 * 1000L
+        private const val TAG = "AlarmRingService"
 
         fun triggerIntent(context: Context, occurrenceId: String): Intent =
             Intent(context, AlarmRingService::class.java).apply {

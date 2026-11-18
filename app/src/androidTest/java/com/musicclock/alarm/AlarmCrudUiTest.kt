@@ -7,8 +7,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.google.common.truth.Truth.assertThat
 import com.musicclock.alarm.data.AlarmEntity
 import com.musicclock.alarm.data.ScheduleType
 import com.musicclock.alarm.ui.MainActivity
@@ -40,9 +44,20 @@ class AlarmCrudUiTest {
     fun createToggleEditAndDeleteAlarm() {
         composeRule.onNodeWithTag(UiTestTags.HOME_ADD_ALARM).performClick()
         composeRule.onNodeWithTag(UiTestTags.EDITOR_LABEL).performTextInput(label)
+        composeRule.onNodeWithTag(UiTestTags.EDITOR_TIME).performScrollTo().performClick()
+        composeRule.onNodeWithTag(UiTestTags.HOUR_WHEEL).assertIsDisplayed()
+        composeRule.onNodeWithTag(UiTestTags.MINUTE_WHEEL).assertIsDisplayed()
+        val initialTime = selectedTimeText()
+        composeRule.onNodeWithTag(UiTestTags.HOUR_WHEEL)
+            .performTouchInput { swipeUp(durationMillis = 500) }
+        waitUntil { selectedTimeText() != initialTime }
+        composeRule.waitForIdle()
+        val selectedHour = selectedTimeText().substringBefore(":").toInt()
+        composeRule.onNodeWithTag(UiTestTags.TIME_PICKER_CONFIRM).performClick()
         composeRule.onNodeWithTag(UiTestTags.EDITOR_SAVE).performScrollTo().performClick()
 
         val alarm = waitForAlarm()
+        assertThat(alarm.hour).isEqualTo(selectedHour)
         composeRule.onNodeWithTag(UiTestTags.alarmRow(alarm.id))
             .performScrollTo()
             .assertIsDisplayed()
@@ -71,6 +86,12 @@ class AlarmCrudUiTest {
         }
         return requireNotNull(result)
     }
+
+    private fun selectedTimeText(): String =
+        composeRule.onNodeWithTag(UiTestTags.TIME_PICKER_VALUE)
+            .fetchSemanticsNode()
+            .config[SemanticsProperties.Text]
+            .joinToString("") { it.text }
 
     private fun waitUntil(timeoutMillis: Long = 8_000L, condition: () -> Boolean) {
         composeRule.waitUntil(timeoutMillis, condition)

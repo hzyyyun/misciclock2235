@@ -160,7 +160,8 @@ try {
     }
     & $Adb -s $Serial pull "$latestRemote/01-home.png" (Join-Path $ArtifactRoot "api35-home.png") | Out-Null
     & $Adb -s $Serial pull "$latestRemote/02-editor.png" (Join-Path $ArtifactRoot "api35-editor.png") | Out-Null
-    & $Adb -s $Serial pull "$latestRemote/03-ring.png" (Join-Path $ArtifactRoot "api35-ring.png") | Out-Null
+    & $Adb -s $Serial pull "$latestRemote/03-time-wheel.png" (Join-Path $ArtifactRoot "api35-time-wheel.png") | Out-Null
+    & $Adb -s $Serial pull "$latestRemote/04-ring.png" (Join-Path $ArtifactRoot "api35-ring.png") | Out-Null
 
     & $Adb -s $Serial logcat -d -t 5000 |
         Set-Content -LiteralPath (Join-Path $ArtifactRoot "api35-logcat.txt")

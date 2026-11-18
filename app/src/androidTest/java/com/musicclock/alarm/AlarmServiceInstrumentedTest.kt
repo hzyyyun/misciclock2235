@@ -1,5 +1,7 @@
 package com.musicclock.alarm
 
+import android.app.ActivityManager
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.ParcelFileDescriptor
@@ -13,8 +15,10 @@ import com.musicclock.alarm.data.AlarmEntity
 import com.musicclock.alarm.data.AppRepository
 import com.musicclock.alarm.data.OccurrenceKind
 import com.musicclock.alarm.data.OccurrenceState
+import com.musicclock.alarm.data.OccurrenceEntity
 import com.musicclock.alarm.data.ScheduleType
 import com.musicclock.alarm.ring.AlarmRingService
+import com.musicclock.alarm.ring.AlarmNotifications
 import com.musicclock.alarm.ring.RingSessionStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -145,6 +149,65 @@ class AlarmServiceInstrumentedTest {
         }
     }
 
+    @Test
+    fun dismissStopsPlaybackForegroundServiceAndNotification() {
+        runBlocking {
+            val beganAt = System.currentTimeMillis()
+            val ringing = createPersistedRingingOccurrence(
+                beganAt = beganAt,
+                autoStopAt = beganAt + 60_000L,
+            )
+            startRing(ringing.id)
+            waitFor { RingSessionStore.state.value?.occurrenceId == ringing.id }
+
+            context.startService(
+                AlarmRingService.actionIntent(context, AlarmRingService.ACTION_DISMISS, ringing.id),
+            )
+
+            waitFor { repository.getOccurrence(ringing.id)?.state == OccurrenceState.DISMISSED }
+            waitFor { RingSessionStore.state.value == null }
+            waitFor { !isRingServiceRunning() }
+            assertThat(hasRingingNotification()).isFalse()
+        }
+    }
+
+    @Test
+    fun expiredPersistedDeadlineNeverStartsPlayback() {
+        runBlocking {
+            val now = System.currentTimeMillis()
+            val expired = createPersistedRingingOccurrence(
+                beganAt = now - 20_000L,
+                autoStopAt = now - 1_000L,
+            )
+            startRing(expired.id)
+
+            waitFor { repository.getOccurrence(expired.id)?.state == OccurrenceState.MISSED }
+            waitFor { RingSessionStore.state.value == null }
+            waitFor { !isRingServiceRunning() }
+            assertThat(hasRingingNotification()).isFalse()
+        }
+    }
+
+    @Test
+    fun shortPersistedDeadlineStopsRingAndService() {
+        runBlocking {
+            val now = System.currentTimeMillis()
+            val ringing = createPersistedRingingOccurrence(
+                beganAt = now,
+                autoStopAt = now + 2_000L,
+            )
+            startRing(ringing.id)
+            waitFor { RingSessionStore.state.value?.occurrenceId == ringing.id }
+
+            waitFor(timeoutMillis = 10_000L) {
+                repository.getOccurrence(ringing.id)?.state == OccurrenceState.MISSED
+            }
+            waitFor { RingSessionStore.state.value == null }
+            waitFor { !isRingServiceRunning() }
+            assertThat(hasRingingNotification()).isFalse()
+        }
+    }
+
     private suspend fun createAlarm(
         labelPrefix: String,
         triggerAtMillis: Long = System.currentTimeMillis() + 60_000L,
@@ -164,6 +227,24 @@ class AlarmServiceInstrumentedTest {
         return alarm.copy(id = id)
     }
 
+    private suspend fun createPersistedRingingOccurrence(
+        beganAt: Long,
+        autoStopAt: Long,
+    ): OccurrenceEntity {
+        val alarm = createAlarm("instrumented-persisted-ring", beganAt)
+        val scheduled = repository.scheduleOccurrence(
+            alarmId = alarm.id,
+            triggerAtMillis = beganAt,
+        )
+        val ringing = scheduled.copy(
+            state = OccurrenceState.RINGING,
+            ringStartedAtMillis = beganAt,
+            autoStopAtMillis = autoStopAt,
+        )
+        container.database.alarmDao().upsertOccurrence(ringing)
+        return ringing
+    }
+
     private fun startRing(occurrenceId: String) {
         ContextCompat.startForegroundService(
             context,
@@ -178,6 +259,20 @@ class AlarmServiceInstrumentedTest {
             )
         ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
     }
+
+    @Suppress("DEPRECATION")
+    private fun isRingServiceRunning(): Boolean =
+        context.getSystemService(ActivityManager::class.java)
+            .getRunningServices(Int.MAX_VALUE)
+            .any {
+                it.service.packageName == context.packageName &&
+                    it.service.className == AlarmRingService::class.java.name
+            }
+
+    private fun hasRingingNotification(): Boolean =
+        context.getSystemService(NotificationManager::class.java)
+            .activeNotifications
+            .any { it.id == AlarmNotifications.RING_NOTIFICATION_ID }
 
     private fun waitFor(timeoutMillis: Long = 10_000L, condition: suspend () -> Boolean) {
         runBlocking {

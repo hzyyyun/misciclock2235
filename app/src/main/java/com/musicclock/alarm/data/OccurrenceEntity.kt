@@ -34,5 +34,7 @@ data class OccurrenceEntity(
     val state: OccurrenceState,
     val parentOccurrenceId: String? = null,
     val createdAtMillis: Long,
+    val ringStartedAtMillis: Long? = null,
+    val autoStopAtMillis: Long? = null,
 )
 

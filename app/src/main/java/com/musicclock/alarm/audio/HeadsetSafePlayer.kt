@@ -9,6 +9,7 @@ import android.media.AudioRouting
 import android.media.MediaPlayer
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,6 +20,7 @@ sealed interface PlaybackEvent {
     data class Disconnected(val reason: String) : PlaybackEvent
     data class Interrupted(val reason: String) : PlaybackEvent
     data class DecodeError(val message: String) : PlaybackEvent
+    data class TimedOut(val reason: String) : PlaybackEvent
 }
 
 class HeadsetSafePlayer(context: Context) {
@@ -52,6 +54,7 @@ class HeadsetSafePlayer(context: Context) {
         file: File,
         headset: AudioDeviceInfo?,
         maxGain: Float,
+        maxDurationMillis: Long? = null,
         onEvent: (PlaybackEvent) -> Unit,
     ) = withContext(Dispatchers.Main.immediate) {
         stop()
@@ -144,6 +147,20 @@ class HeadsetSafePlayer(context: Context) {
             stop()
             eventListener?.invoke(PlaybackEvent.DecodeError(error.message ?: "播放失败"))
             return@withContext
+        }
+
+        maxDurationMillis?.takeIf { it > 0L }?.let { duration ->
+            val expectedSession = currentSession
+            val stopAtElapsed = SystemClock.elapsedRealtime() + duration
+            mainHandler.postAtTime(
+                {
+                    if (!stopped && expectedSession == sessionId) {
+                        stop()
+                        eventListener?.invoke(PlaybackEvent.TimedOut("响铃已达到时间上限"))
+                    }
+                },
+                stopAtElapsed,
+            )
         }
 
         if (headset != null) {

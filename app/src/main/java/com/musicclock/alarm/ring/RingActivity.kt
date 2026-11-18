@@ -203,7 +203,7 @@ private fun RingContent(onClose: () -> Unit) {
                         contentColor = Color.White,
                     ),
                 ) {
-                    Text("关闭闹钟", fontSize = 17.sp)
+                    Text("停止响铃", fontSize = 17.sp)
                 }
             }
         }

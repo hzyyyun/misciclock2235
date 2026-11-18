@@ -26,7 +26,7 @@ if (-not $JavaHome) {
     }
 }
 if (-not $ApkPath) {
-    $ApkPath = Join-Path $RepoRoot "dist\MusicClock-1.0.0-debug.apk"
+    $ApkPath = Join-Path $RepoRoot "dist\MusicClock-1.1.0-debug.apk"
 }
 
 $SdkRoot = (Resolve-Path -LiteralPath $SdkRoot).Path

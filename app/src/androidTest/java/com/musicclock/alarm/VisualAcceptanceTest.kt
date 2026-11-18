@@ -1,6 +1,7 @@
 package com.musicclock.alarm
 
 import android.content.Intent
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
@@ -74,6 +75,12 @@ class VisualAcceptanceTest {
         device.waitForIdle()
         Thread.sleep(1_000L)
         capture("02-editor.png", outputDir)
+        composeRule.onNodeWithTag(UiTestTags.EDITOR_TIME).performClick()
+        composeRule.onNodeWithTag(UiTestTags.HOUR_WHEEL).assertIsDisplayed()
+        composeRule.waitForIdle()
+        Thread.sleep(500L)
+        capture("03-time-wheel.png", outputDir)
+        composeRule.onNodeWithTag(UiTestTags.TIME_PICKER_CANCEL).performClick()
 
         val alarm = createAlarm()
         occurrenceId = repository.scheduleOccurrence(
@@ -97,7 +104,7 @@ class VisualAcceptanceTest {
         device.executeShellCommand("cmd statusbar collapse")
         Thread.sleep(7_000L)
         device.waitForIdle()
-        capture("03-ring.png", outputDir)
+        capture("04-ring.png", outputDir)
         instrumentation.runOnMainSync { ringActivity.finish() }
     }
 

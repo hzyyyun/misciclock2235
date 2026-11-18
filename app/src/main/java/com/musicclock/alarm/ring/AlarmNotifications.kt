@@ -74,7 +74,7 @@ class AlarmNotifications(private val context: Context) {
         }
         builder.addAction(
             0,
-            "关闭闹钟",
+            "停止响铃",
             servicePendingIntent(
                 state.occurrenceId,
                 AlarmRingService.ACTION_DISMISS,

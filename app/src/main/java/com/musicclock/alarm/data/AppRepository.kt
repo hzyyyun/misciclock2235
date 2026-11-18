@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.withLock
 class AppRepository(
     private val dao: AlarmDao,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val ringDurationMillis: Long = RingSessionPolicy.MAX_RING_DURATION_MILLIS,
 ) {
     private val claimMutex = Mutex()
 
@@ -80,8 +81,12 @@ class AppRepository(
 
     suspend fun getNextPendingOccurrence(): OccurrenceEntity? = dao.getNextPendingOccurrence(clock())
 
-    suspend fun setOccurrenceState(id: String, state: OccurrenceState) =
+    suspend fun setOccurrenceState(id: String, state: OccurrenceState) {
         dao.updateOccurrenceState(id, state)
+        if (state != OccurrenceState.RINGING && state != OccurrenceState.QUEUED) {
+            dao.clearOccurrenceRingTiming(id)
+        }
+    }
 
     suspend fun recoverRingingAsQueued() =
         dao.updateAllOccurrencesState(OccurrenceState.RINGING, OccurrenceState.QUEUED)
@@ -97,15 +102,64 @@ class AppRepository(
         }
         val ringing = dao.getRingingOccurrence()
         val nextState = if (ringing == null) OccurrenceState.RINGING else OccurrenceState.QUEUED
-        dao.updateOccurrenceState(occurrence.id, nextState)
-        occurrence.copy(state = nextState)
+        if (nextState == OccurrenceState.RINGING) {
+            val now = clock()
+            val deadline = now + ringDurationMillis
+            dao.updateOccurrenceRingState(
+                id = occurrence.id,
+                state = nextState,
+                ringStartedAtMillis = now,
+                autoStopAtMillis = deadline,
+            )
+            occurrence.copy(
+                state = nextState,
+                ringStartedAtMillis = now,
+                autoStopAtMillis = deadline,
+            )
+        } else {
+            dao.updateOccurrenceState(occurrence.id, nextState)
+            occurrence.copy(state = nextState)
+        }
     }
 
     suspend fun claimNextQueued(): OccurrenceEntity? = claimMutex.withLock {
         if (dao.getRingingOccurrence() != null) return@withLock null
         val occurrence = dao.getNextQueuedOccurrence() ?: return@withLock null
-        dao.updateOccurrenceState(occurrence.id, OccurrenceState.RINGING)
-        occurrence.copy(state = OccurrenceState.RINGING)
+        val now = clock()
+        val deadline = now + ringDurationMillis
+        dao.updateOccurrenceRingState(
+            id = occurrence.id,
+            state = OccurrenceState.RINGING,
+            ringStartedAtMillis = now,
+            autoStopAtMillis = deadline,
+        )
+        occurrence.copy(
+            state = OccurrenceState.RINGING,
+            ringStartedAtMillis = now,
+            autoStopAtMillis = deadline,
+        )
+    }
+
+    suspend fun ensureRingTiming(occurrence: OccurrenceEntity): OccurrenceEntity {
+        if (occurrence.ringStartedAtMillis != null && occurrence.autoStopAtMillis != null) {
+            return occurrence
+        }
+        val now = clock()
+        val startedAt = occurrence.ringStartedAtMillis
+            ?: occurrence.autoStopAtMillis?.minus(ringDurationMillis)
+            ?: now
+        val deadline = occurrence.autoStopAtMillis ?: (startedAt + ringDurationMillis)
+        dao.updateOccurrenceRingState(
+            id = occurrence.id,
+            state = OccurrenceState.RINGING,
+            ringStartedAtMillis = startedAt,
+            autoStopAtMillis = deadline,
+        )
+        return occurrence.copy(
+            state = OccurrenceState.RINGING,
+            ringStartedAtMillis = startedAt,
+            autoStopAtMillis = deadline,
+        )
     }
 }
 

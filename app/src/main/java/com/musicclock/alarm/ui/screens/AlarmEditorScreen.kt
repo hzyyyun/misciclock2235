@@ -1,7 +1,5 @@
 package com.musicclock.alarm.ui.screens
 
-import android.app.TimePickerDialog
-import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -50,7 +48,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.musicclock.alarm.data.ScheduleType
 import com.musicclock.alarm.ui.AlarmEditorViewModel
 import com.musicclock.alarm.ui.UiTestTags
-import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +64,7 @@ fun AlarmEditorScreen(
     onBack: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    var showTimePicker by remember { mutableStateOf(false) }
     var showRingtonePicker by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     val filePicker = rememberLauncherForActivityResult(
@@ -147,17 +143,7 @@ fun AlarmEditorScreen(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
-                        TimePickerDialog(
-                            context,
-                            { _, hour, minute ->
-                                viewModel.update { it.copy(hour = hour, minute = minute) }
-                            },
-                            state.hour,
-                            state.minute,
-                            DateFormat.is24HourFormat(context),
-                        ).show()
-                    }
+                    .clickable { showTimePicker = true }
                     .testTag(UiTestTags.EDITOR_TIME),
             ) {
                 Column(
@@ -171,7 +157,7 @@ fun AlarmEditorScreen(
                         fontWeight = FontWeight.Light,
                     )
                     Text(
-                        "点击修改时间",
+                        "上下滚动选择时间",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -320,6 +306,18 @@ fun AlarmEditorScreen(
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+
+    if (showTimePicker) {
+        TimeWheelPickerSheet(
+            initialHour = state.hour,
+            initialMinute = state.minute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                viewModel.update { it.copy(hour = hour, minute = minute) }
+                showTimePicker = false
+            },
+        )
     }
 
     if (showRingtonePicker) {

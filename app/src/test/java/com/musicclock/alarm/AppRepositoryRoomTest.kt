@@ -23,6 +23,7 @@ import org.robolectric.annotation.Config
 class AppRepositoryRoomTest {
     private lateinit var database: AppDatabase
     private lateinit var repository: AppRepository
+    private var now = 1_000L
 
     @Before
     fun setUp() {
@@ -30,7 +31,11 @@ class AppRepositoryRoomTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = AppRepository(database.alarmDao())
+        repository = AppRepository(
+            dao = database.alarmDao(),
+            clock = { now },
+            ringDurationMillis = 5_000L,
+        )
     }
 
     @After
@@ -139,6 +144,33 @@ class AppRepositoryRoomTest {
         assertThat(repository.claimOccurrence(occurrence.id)?.state)
             .isEqualTo(OccurrenceState.RINGING)
         assertThat(repository.claimOccurrence(occurrence.id)).isNull()
+    }
+
+    @Test
+    fun ringDeadlineIsAbsoluteAndClearedOnDismiss() = runTest {
+        now = 10_000L
+        val alarmId = repository.saveAlarm(
+            AlarmEntity(
+                label = "deadline",
+                hour = 7,
+                minute = 0,
+                scheduleType = ScheduleType.ONE_SHOT,
+            ),
+        )
+        val occurrence = repository.scheduleOccurrence(alarmId, 5_000L)
+
+        val ringing = requireNotNull(repository.claimOccurrence(occurrence.id))
+        assertThat(ringing.ringStartedAtMillis).isEqualTo(10_000L)
+        assertThat(ringing.autoStopAtMillis).isEqualTo(15_000L)
+
+        now = 12_000L
+        val recovered = repository.ensureRingTiming(ringing)
+        assertThat(recovered.autoStopAtMillis).isEqualTo(15_000L)
+
+        repository.setOccurrenceState(occurrence.id, OccurrenceState.DISMISSED)
+        val dismissed = requireNotNull(repository.getOccurrence(occurrence.id))
+        assertThat(dismissed.ringStartedAtMillis).isNull()
+        assertThat(dismissed.autoStopAtMillis).isNull()
     }
 }
 

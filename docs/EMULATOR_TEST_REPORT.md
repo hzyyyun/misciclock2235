@@ -7,14 +7,14 @@
 - 设备配置：Pixel 6，Android 15 / API 35，`x86_64`
 - 加速：Windows Hypervisor Platform，可用
 - 启动方式：无窗口、冷启动、`swiftshader_indirect`、`-no-audio`
-- 应用版本：`1.0.0`，`versionCode 1`
+- 应用版本：`1.1.0`，`versionCode 2`
 
 ## 自动化结果
 
 | 类型 | 结果 |
 |---|---|
-| JVM 测试 | 6 个套件，17 个测试，0 failure |
-| API 35 connected tests | 7 个测试，0 failure |
+| JVM 测试 | 6 个套件，18 个测试，0 failure |
+| API 35 connected tests | 11 个测试，0 failure |
 | Android Lint | 0 error |
 | UI 截图 | 首页、编辑页、响铃页、大字体、360dp 小屏 |
 | 重启恢复 | 实测通过 |
@@ -22,14 +22,18 @@
 最终 APK SHA-256：
 
 ```text
-E1C09C6C67FD3194FA2881B32D206CA17D9B432A54A1177689C68626F48A97D0
+C60B30AB8D5D61A6F88162509FEA58AD5AFE817014261826EA64A7AECCB9DD32
 ```
 
 设备测试覆盖：
 
 - 通过真实 UI 新建、启停、编辑和删除闹钟。
+- 数字时间滚轮可打开、滚动并确认保存。
 - AlarmManager 精确定时在应用后台时触发前台响铃服务。
 - 屏幕熄灭/锁屏后精确闹钟仍能触发。
+- 手动停止会终止音频、震动、响铃通知和前台服务。
+- 已过期实例不启动播放器；2 秒短截止测试实例自动停止。
+- Room v1→v2 migration 保留历史实例并新增响铃截止字段。
 - 两个接近触发的实例按顺序进入 `RINGING` 和 `QUEUED`。
 - Snooze 创建独立实例，触发时间为点击后约 5 分钟。
 - 私有 WAV 文件通过真实平台解码器完成复制和导入。
@@ -41,6 +45,7 @@ E1C09C6C67FD3194FA2881B32D206CA17D9B432A54A1177689C68626F48A97D0
 |---|---|
 | 首页 | [api35-home.png](artifacts/emulator/api35-home.png) |
 | 编辑页 | [api35-editor.png](artifacts/emulator/api35-editor.png) |
+| 时间滚轮 | [api35-time-wheel.png](artifacts/emulator/api35-time-wheel.png) |
 | 响铃页 | [api35-ring.png](artifacts/emulator/api35-ring.png) |
 | 1.3 倍字体 | [api35-home-large-font.png](artifacts/emulator/api35-home-large-font.png) |
 | 360dp 小屏 | [api35-home-360dp.png](artifacts/emulator/api35-home-360dp.png) |

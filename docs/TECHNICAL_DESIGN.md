@@ -42,7 +42,8 @@ oneShotAtMillis, enabled, ringtoneId, vibrationEnabled, snoozeEnabled
 
 ```text
 id(UUID), alarmId, triggerAtMillis, kind, state,
-parentOccurrenceId, createdAtMillis
+parentOccurrenceId, createdAtMillis,
+ringStartedAtMillis, autoStopAtMillis
 ```
 
 状态：
@@ -144,6 +145,9 @@ Android 13+ 优先使用 `getAudioDevicesForAttributes()` 查询系统建议媒�
 - `ACTION_DISMISS`：当前实例写为 DISMISSED。
 - `ACTION_RETRY_AUDIO`：重新执行设备发现和失败关闭播放。
 - 10 分钟超时：当前实例写为 MISSED，静音并写状态通知。
+- `ringStartedAtMillis` 与 `autoStopAtMillis` 持久化首次响铃和绝对截止时间；服务恢复只等待剩余时间。
+- 已过期的 `RINGING` 实例不启动播放器，直接进入 MISSED。
+- `MediaPlayer` 和 Service watchdog 同时执行硬停止，避免主状态机异常时继续循环。
 
 ## 7. 通知与界面
 
@@ -175,6 +179,7 @@ Android 13+ 优先使用 `getAudioDevicesForAttributes()` 查询系统建议媒�
 ### 自动化
 
 - 触发时间算法、星期、单次、夏令时。
+- Room v1→v2 migration、响铃绝对截止时间、终端状态清理。
 - Room 队列串行和级联清理。
 - Manifest 无网络权限、备份关闭。
 - 内置 WAV 文件头和长度。
@@ -187,6 +192,7 @@ Android 13+ 优先使用 `getAudioDevicesForAttributes()` 查询系统建议媒�
 - 耳机中途断开、重连、蓝牙没电。
 - 勿扰、静音、精确权限拒绝、电池限制。
 - 多个同时触发、Snooze、10 分钟自动静音。
+- 手动停止、后台服务重建、过期实例恢复、播放器硬停止。
 
 ### 模拟器
 

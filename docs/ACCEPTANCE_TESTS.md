@@ -8,13 +8,13 @@
 - `ManifestPrivacyTest`：无 INTERNET、自动备份关闭。
 - `BuiltInToneGeneratorTest`：内置提示音为有效 WAV。
 - `MainActivitySmokeTest`：Compose 应用可启动。
-- API 35 connected tests：UI CRUD、后台精确触发、锁屏触发、多实例队列、Snooze、WAV 导入和截图。
+- API 35 connected tests：数字时间滚轮、UI CRUD、后台精确触发、锁屏触发、多实例队列、Snooze、WAV 导入、手动停止、持久化截止时间和截图。
 - Android Lint：0 error。
 
 当前自动化结果：
 
-- JVM：6 个测试套件、17 个测试、0 failure、0 error。
-- API 35 模拟器：7 个测试、0 failure。
+- JVM：6 个测试套件、18 个测试、0 failure、0 error。
+- API 35 模拟器：11 个测试、0 failure。
 
 模拟器详细结果见 `docs/EMULATOR_TEST_REPORT.md`。
 
@@ -65,6 +65,8 @@
 | SCH-04 | 时间/时区 | 修改系统时间或时区 | 所有启用闹钟重算 |
 | SCH-05 | 权限拒绝 | 关闭精确闹钟权限后创建/等待 | 显示降级警告；使用尽力调度 |
 | AUTO-01 | 自动静音 | 不操作并持续响铃 10 分钟 | 声音与震动停止，写状态通知 |
+| AUTO-02 | 服务恢复不重置上限 | 响铃中重建服务 | 仍按首次响铃的绝对 10 分钟截止时间停止 |
+| STOP-01 | 手动停止 | 响铃中点击页面或通知“停止响铃” | 音频、震动和响铃通知立即停止，服务退出 |
 | CNT-01 | 多个 Snooze | 为不同闹钟分别 Snooze | 每个临时实例独立，不互相覆盖 |
 | PRI-01 | 隐私静态检查 | `aapt dump permissions app-debug.apk` | 不出现 `android.permission.INTERNET` |
 | UI-01 | 大字体 | 系统字体放大后浏览首页、编辑页、响铃页 | 文本不截断或重叠，主要按钮可见 |
