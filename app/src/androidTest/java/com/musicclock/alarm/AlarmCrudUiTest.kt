@@ -2,6 +2,7 @@ package com.musicclock.alarm
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -12,9 +13,13 @@ import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.core.content.ContextCompat
 import com.google.common.truth.Truth.assertThat
 import com.musicclock.alarm.data.AlarmEntity
+import com.musicclock.alarm.data.OccurrenceState
 import com.musicclock.alarm.data.ScheduleType
+import com.musicclock.alarm.ring.AlarmRingService
+import com.musicclock.alarm.ring.RingSessionStore
 import com.musicclock.alarm.ui.MainActivity
 import com.musicclock.alarm.ui.UiTestTags
 import kotlinx.coroutines.runBlocking
@@ -35,8 +40,18 @@ class AlarmCrudUiTest {
 
     @After
     fun cleanUp() = runBlocking {
+        repository.getRingingOccurrence()?.let { ringing ->
+            ContextCompat.startForegroundService(
+                context,
+                AlarmRingService.actionIntent(
+                    context,
+                    AlarmRingService.ACTION_DISMISS,
+                    ringing.id,
+                ),
+            )
+        }
         repository.getAllAlarms()
-            .filter { it.label == label }
+            .filter { it.label == label || it.label.startsWith("$label-") }
             .forEach { repository.deleteAlarm(it.id) }
     }
 
@@ -74,6 +89,85 @@ class AlarmCrudUiTest {
         composeRule.onNodeWithTag(UiTestTags.EDITOR_DELETE).performClick()
         composeRule.onNodeWithText("删除").performClick()
         waitUntil { runBlocking { repository.getAlarm(alarm.id) } == null }
+    }
+
+    @Test
+    fun ringingControlsOnlyAppearOnMatchingAlarmAndStopTheRing() {
+        val ringingAlarm = createAlarm("$label-ring")
+        val otherAlarm = createAlarm("$label-other")
+        val occurrence = runBlocking {
+            repository.scheduleOccurrence(
+                alarmId = ringingAlarm.id,
+                triggerAtMillis = System.currentTimeMillis(),
+            )
+        }
+        ContextCompat.startForegroundService(
+            context,
+            AlarmRingService.triggerIntent(context, occurrence.id),
+        )
+        waitUntil { RingSessionStore.state.value?.occurrenceId == occurrence.id }
+
+        composeRule.onNodeWithTag(UiTestTags.alarmRow(otherAlarm.id))
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(UiTestTags.EDITOR_RING_STOP).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("返回").performClick()
+
+        composeRule.onNodeWithTag(UiTestTags.alarmRow(ringingAlarm.id))
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(UiTestTags.EDITOR_RING_SNOOZE).assertIsDisplayed()
+        composeRule.onNodeWithTag(UiTestTags.EDITOR_RING_STOP)
+            .assertIsDisplayed()
+            .performClick()
+
+        waitUntil {
+            runBlocking {
+                repository.getOccurrence(occurrence.id)?.state == OccurrenceState.DISMISSED
+            }
+        }
+        waitUntil { RingSessionStore.state.value == null }
+        composeRule.onNodeWithTag(UiTestTags.EDITOR_RING_STOP).assertDoesNotExist()
+    }
+
+    @Test
+    fun appLaunchDoesNotResumePersistedRingingSession() {
+        val alarm = createAlarm("$label-stale")
+        val now = System.currentTimeMillis()
+        val persistedRinging = runBlocking {
+            repository.scheduleOccurrence(
+                alarmId = alarm.id,
+                triggerAtMillis = now,
+            ).copy(
+                state = OccurrenceState.RINGING,
+                ringStartedAtMillis = now,
+                autoStopAtMillis = now + 60_000L,
+            )
+        }
+        runBlocking {
+            (context.applicationContext as MusicClockApplication)
+                .container.database
+                .alarmDao()
+                .upsertOccurrence(persistedRinging)
+        }
+
+        composeRule.runOnUiThread { composeRule.activity.recreate() }
+        Thread.sleep(1_000L)
+
+        assertThat(RingSessionStore.state.value).isNull()
+    }
+
+    private fun createAlarm(alarmLabel: String): AlarmEntity = runBlocking {
+        val alarm = AlarmEntity(
+            label = alarmLabel,
+            hour = 7,
+            minute = 0,
+            scheduleType = ScheduleType.WEEKLY,
+            weekdaysMask = 0b1111111,
+            snoozeEnabled = true,
+            vibrationEnabled = false,
+        )
+        alarm.copy(id = repository.saveAlarm(alarm))
     }
 
     private fun waitForAlarm(): AlarmEntity {

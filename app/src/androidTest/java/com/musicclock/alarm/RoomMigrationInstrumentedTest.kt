@@ -56,6 +56,38 @@ class RoomMigrationInstrumentedTest {
         migrated.close()
     }
 
+    @Test
+    fun migration2To3AddsSafeRingStopDefaults() {
+        helper.createDatabase(TEST_DATABASE, 2).apply {
+            execSQL(
+                """
+                INSERT INTO alarms (
+                    id, label, hour, minute, scheduleType, weekdaysMask,
+                    oneShotAtMillis, enabled, ringtoneId, vibrationEnabled, snoozeEnabled
+                ) VALUES (1, 'migration-v3', 7, 0, 'ONE_SHOT', 0, NULL, 1, NULL, 1, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DATABASE,
+            3,
+            true,
+            AppDatabase.MIGRATION_2_3,
+        )
+
+        migrated.query(
+            "SELECT ringStopMode, ringDurationSeconds, ringLoopCount FROM alarms WHERE id = 1",
+        ).use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            assertThat(cursor.getString(0)).isEqualTo("DURATION")
+            assertThat(cursor.getInt(1)).isEqualTo(300)
+            assertThat(cursor.getInt(2)).isEqualTo(1)
+        }
+        migrated.close()
+    }
+
     companion object {
         private const val TEST_DATABASE = "migration-test"
     }

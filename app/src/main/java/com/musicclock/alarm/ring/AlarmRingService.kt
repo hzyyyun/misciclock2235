@@ -16,11 +16,12 @@ import com.musicclock.alarm.audio.HeadsetSafePlayer
 import com.musicclock.alarm.audio.PlaybackEvent
 import com.musicclock.alarm.audio.VibrationController
 import com.musicclock.alarm.data.AlarmEntity
+import com.musicclock.alarm.data.AlarmTimingPolicy
 import com.musicclock.alarm.data.AppRepository
 import com.musicclock.alarm.data.OccurrenceEntity
 import com.musicclock.alarm.data.OccurrenceKind
 import com.musicclock.alarm.data.OccurrenceState
-import com.musicclock.alarm.data.RingSessionPolicy
+import com.musicclock.alarm.data.RingDurationPolicy
 import com.musicclock.alarm.data.ScheduleType
 import com.musicclock.alarm.data.SettingsRepository
 import java.io.File
@@ -117,29 +118,48 @@ class AlarmRingService : Service() {
 
     private suspend fun processTrigger(occurrenceId: String) = triggerMutex.withLock {
         if (activeOccurrence?.id == occurrenceId) return@withLock
-        val claimed = repository.claimOccurrence(occurrenceId)
-        if (claimed == null) {
-            val existing = repository.getOccurrence(occurrenceId)
-            if (existing?.state == OccurrenceState.RINGING && activeOccurrence == null) {
-                val alarm = repository.getAlarm(existing.alarmId)
-                if (alarm != null) {
-                    advanceRecurringAlarm(alarm, existing)
-                    startRing(existing, alarm)
-                } else {
-                    repository.setOccurrenceState(existing.id, OccurrenceState.MISSED)
-                    promoteNext()
-                }
-            } else {
-                stopIfIdle()
-            }
+        val occurrenceIdValue = occurrenceId
+        val occurrence = repository.getOccurrence(occurrenceIdValue) ?: run {
+            stopIfIdle()
             return@withLock
         }
-        val alarm = repository.getAlarm(claimed.alarmId) ?: run {
-            repository.setOccurrenceState(claimed.id, OccurrenceState.MISSED)
+        val now = System.currentTimeMillis()
+        if (!AlarmTimingPolicy.isDue(occurrence.triggerAtMillis, now)) {
+            Log.w(
+                TAG,
+                "Ignoring early trigger occurrence=${occurrence.id} " +
+                    "triggerAt=${occurrence.triggerAtMillis} now=$now",
+            )
+            stopIfIdle()
+            return@withLock
+        }
+
+        val alarm = repository.getAlarm(occurrence.alarmId) ?: run {
+            repository.setOccurrenceState(occurrence.id, OccurrenceState.MISSED)
             promoteNext()
             return@withLock
         }
-        advanceRecurringAlarm(alarm, claimed)
+
+        if (occurrence.state == OccurrenceState.RINGING) {
+            startRing(occurrence, alarm)
+            return@withLock
+        }
+        if (occurrence.state != OccurrenceState.SCHEDULED &&
+            occurrence.state != OccurrenceState.QUEUED
+        ) {
+            stopIfIdle()
+            return@withLock
+        }
+        val claimed = repository.claimOccurrence(
+            id = occurrence.id,
+            requestedDurationMillis = ringDurationFor(alarm),
+        ) ?: run {
+            stopIfIdle()
+            return@withLock
+        }
+        if (occurrence.state == OccurrenceState.SCHEDULED) {
+            advanceRecurringAlarm(alarm, claimed)
+        }
 
         when (claimed.state) {
             OccurrenceState.RINGING -> startRing(claimed, alarm)
@@ -150,18 +170,25 @@ class AlarmRingService : Service() {
 
     private suspend fun recoverSession() = triggerMutex.withLock {
         if (activeOccurrence != null) return@withLock
-        val ringing = repository.getRingingOccurrence() ?: repository.claimNextQueued()
-        if (ringing == null) {
+
+        val persisted = repository.getRingingOccurrence()
+        if (persisted != null) {
+            val alarm = repository.getAlarm(persisted.alarmId)
+            if (alarm == null) {
+                repository.setOccurrenceState(persisted.id, OccurrenceState.MISSED)
+            } else {
+                startRing(persisted, alarm)
+                return@withLock
+            }
+        }
+
+        val next = claimNextQueuedForRing()
+        val alarm = next?.let { repository.getAlarm(it.alarmId) }
+        if (next == null || alarm == null) {
             stopIfIdle()
             return@withLock
         }
-        val alarm = repository.getAlarm(ringing.alarmId)
-        if (alarm == null) {
-            repository.setOccurrenceState(ringing.id, OccurrenceState.MISSED)
-            promoteNext()
-        } else {
-            startRing(ringing, alarm)
-        }
+        startRing(next, alarm)
     }
 
     private suspend fun advanceRecurringAlarm(alarm: AlarmEntity, occurrence: OccurrenceEntity) {
@@ -179,9 +206,17 @@ class AlarmRingService : Service() {
         useBuiltIn: Boolean = false,
     ) {
         val timedOccurrence = repository.ensureRingTiming(occurrence)
+        if (timedOccurrence == null) {
+            finishActive(promoteNext = true)
+            return
+        }
         val now = System.currentTimeMillis()
         val autoStopAt = timedOccurrence.autoStopAtMillis
-            ?: RingSessionPolicy.deadlineFrom(now)
+            ?: run {
+                repository.setOccurrenceState(timedOccurrence.id, OccurrenceState.MISSED)
+                finishActive(promoteNext = true)
+                return
+            }
         if (autoStopAt <= now) {
             expireOccurrence(
                 occurrence = timedOccurrence,
@@ -203,6 +238,7 @@ class AlarmRingService : Service() {
         RingSessionStore.update(
             RingUiState(
                 occurrenceId = timedOccurrence.id,
+                alarmId = alarm.id,
                 alarmLabel = alarm.label,
                 hour = alarm.hour,
                 minute = alarm.minute,
@@ -251,6 +287,13 @@ class AlarmRingService : Service() {
             "Ring started occurrence=${timedOccurrence.id} startedAt=${timedOccurrence.ringStartedAtMillis} " +
                 "autoStopAt=$autoStopAt remainingMillis=${autoStopAt - now}",
         )
+    }
+
+    private suspend fun ringDurationFor(alarm: AlarmEntity): Long {
+        val ringtoneDuration = alarm.ringtoneId
+            ?.let { repository.getRingtone(it)?.durationMs }
+            ?: 0L
+        return RingDurationPolicy.effectiveDurationMillis(alarm, ringtoneDuration)
     }
 
     private suspend fun resolveSoundFile(alarm: AlarmEntity, useBuiltIn: Boolean): File? {
@@ -329,7 +372,7 @@ class AlarmRingService : Service() {
         RingSessionStore.patch { it.copy(audioStatus = "已自动静音", autoStopped = true) }
         notifications.notifyStatus(
             "闹钟已自动静音",
-            "${alarm.label.ifBlank { "闹钟" }}已达到 10 分钟响铃上限，请检查是否错过。",
+            "${alarm.label.ifBlank { "闹钟" }}已达到本次响铃上限，请检查是否错过。",
         )
         finishActive(promoteNext = true)
     }
@@ -350,9 +393,9 @@ class AlarmRingService : Service() {
                 val maxVolume = settings.maxVolumePercent.first() / 100f
                 if (activeOccurrence?.id != fallbackOccurrenceId) return@launch
                 val fallback = resolveSoundFile(alarm, useBuiltIn = true) ?: return@launch
-                val deadline = activeOccurrence?.autoStopAtMillis
-                    ?: RingSessionPolicy.deadlineFrom(System.currentTimeMillis())
+                val deadline = activeOccurrence?.autoStopAtMillis ?: return@launch
                 val remaining = (deadline - System.currentTimeMillis()).coerceAtLeast(0L)
+                if (remaining == 0L) return@launch
                 player.play(
                     file = fallback,
                     headset = routeController.connectedHeadset(),
@@ -384,6 +427,7 @@ class AlarmRingService : Service() {
 
         player.stop()
         vibration.stop()
+        repository.dismissQueuedForAlarm(alarm.id)
         repository.setOccurrenceState(occurrence.id, OccurrenceState.SNOOZED)
         scheduler.scheduleSnooze(
             alarmId = occurrence.alarmId,
@@ -397,9 +441,14 @@ class AlarmRingService : Service() {
         val current = activeOccurrence
         val target = occurrenceId?.let { repository.getOccurrence(it) }
         if (current == null) {
-            if (occurrenceId != null) {
-                repository.setOccurrenceState(occurrenceId, OccurrenceState.DISMISSED)
+            if (target != null) {
+                if (target.state == OccurrenceState.RINGING) {
+                    repository.dismissOccurrenceAndQueuedForAlarm(target.id, target.alarmId)
+                } else {
+                    repository.setOccurrenceState(target.id, OccurrenceState.DISMISSED)
+                }
             }
+            notifications.cancelStatus()
             stopIfIdle()
             return@withLock
         }
@@ -410,13 +459,29 @@ class AlarmRingService : Service() {
         if (dismissesCurrent) {
             player.stop()
             vibration.stop()
-            repository.setOccurrenceState(current.id, OccurrenceState.DISMISSED)
+            repository.dismissOccurrenceAndQueuedForAlarm(current.id, current.alarmId)
+            notifications.cancelStatus()
             Log.i(TAG, "Ring dismissed occurrence=${current.id}")
             finishActive(promoteNext = true)
         } else if (target?.state == OccurrenceState.QUEUED ||
             target?.state == OccurrenceState.SCHEDULED
         ) {
             repository.setOccurrenceState(target.id, OccurrenceState.DISMISSED)
+        }
+    }
+
+    private suspend fun claimNextQueuedForRing(): OccurrenceEntity? {
+        while (true) {
+            val occurrence = repository.getNextQueuedOccurrence() ?: return null
+            val alarm = repository.getAlarm(occurrence.alarmId)
+            if (alarm == null) {
+                repository.setOccurrenceState(occurrence.id, OccurrenceState.MISSED)
+                continue
+            }
+            return repository.claimOccurrence(
+                id = occurrence.id,
+                requestedDurationMillis = ringDurationFor(alarm),
+            )?.takeIf { it.state == OccurrenceState.RINGING }
         }
     }
 
@@ -434,7 +499,7 @@ class AlarmRingService : Service() {
             return
         }
         serviceScope.launch {
-            val next = repository.claimNextQueued()
+            val next = claimNextQueuedForRing()
             if (next == null) {
                 stopIfIdle()
                 return@launch

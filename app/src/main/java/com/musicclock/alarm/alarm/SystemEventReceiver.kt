@@ -18,6 +18,11 @@ class SystemEventReceiver : BroadcastReceiver() {
             -> {
                 val application = context.applicationContext as MusicClockApplication
                 application.applicationScope.launch(Dispatchers.IO) {
+                    if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
+                        intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
+                    ) {
+                        application.container.repository.missAllRingingOccurrences()
+                    }
                     application.container.alarmScheduler.rescheduleAll()
                 }
             }

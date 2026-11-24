@@ -86,11 +86,18 @@ class AlarmServiceInstrumentedTest {
     }
 
     @Test
-    fun secondTriggerQueuesAndPromotesAfterDismissal() {
+    fun secondAlarmQueuesAndPromotesAfterDismissal() {
         runBlocking {
-            val alarm = createAlarm("instrumented-queue")
-            val first = repository.scheduleOccurrence(alarm.id, System.currentTimeMillis())
-            val second = repository.scheduleOccurrence(alarm.id, System.currentTimeMillis() + 1_000L)
+            val firstAlarm = createAlarm("instrumented-queue-first")
+            val secondAlarm = createAlarm("instrumented-queue-second")
+            val first = repository.scheduleOccurrence(
+                firstAlarm.id,
+                System.currentTimeMillis(),
+            )
+            val second = repository.scheduleOccurrence(
+                secondAlarm.id,
+                System.currentTimeMillis(),
+            )
 
             startRing(first.id)
             waitFor { repository.getRingingOccurrence()?.id == first.id }
@@ -184,6 +191,29 @@ class AlarmServiceInstrumentedTest {
             waitFor { repository.getOccurrence(expired.id)?.state == OccurrenceState.MISSED }
             waitFor { RingSessionStore.state.value == null }
             waitFor { !isRingServiceRunning() }
+            assertThat(hasRingingNotification()).isFalse()
+        }
+    }
+
+    @Test
+    fun futureOccurrenceBroadcastNeverStartsPlayback() {
+        runBlocking {
+            val alarm = createAlarm(
+                "instrumented-future",
+                System.currentTimeMillis() + 60 * 60 * 1000L,
+            )
+            val occurrence = repository.scheduleOccurrence(
+                alarmId = alarm.id,
+                triggerAtMillis = System.currentTimeMillis() + 60 * 60 * 1000L,
+            )
+
+            startRing(occurrence.id)
+
+            delay(500L)
+            waitFor { !isRingServiceRunning() }
+            assertThat(repository.getOccurrence(occurrence.id)?.state)
+                .isEqualTo(OccurrenceState.SCHEDULED)
+            assertThat(RingSessionStore.state.value).isNull()
             assertThat(hasRingingNotification()).isFalse()
         }
     }

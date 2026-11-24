@@ -68,6 +68,9 @@ interface AlarmDao {
     @Query("UPDATE occurrences SET state = :state WHERE id = :id")
     suspend fun updateOccurrenceState(id: String, state: OccurrenceState)
 
+    @Query("UPDATE occurrences SET state = 'DISMISSED' WHERE alarmId = :alarmId AND state = 'QUEUED'")
+    suspend fun dismissQueuedOccurrencesForAlarm(alarmId: Long)
+
     @Query("UPDATE occurrences SET state = :state, ringStartedAtMillis = :ringStartedAtMillis, autoStopAtMillis = :autoStopAtMillis WHERE id = :id")
     suspend fun updateOccurrenceRingState(
         id: String,
@@ -81,6 +84,12 @@ interface AlarmDao {
 
     @Query("UPDATE occurrences SET state = :state WHERE state = :fromState")
     suspend fun updateAllOccurrencesState(fromState: OccurrenceState, state: OccurrenceState)
+
+    @Query(
+        "UPDATE occurrences SET state = 'MISSED', " +
+            "ringStartedAtMillis = NULL, autoStopAtMillis = NULL WHERE state = 'RINGING'",
+    )
+    suspend fun missAllRingingOccurrences()
 
     @Query("SELECT * FROM ringtones ORDER BY importedAtMillis DESC")
     fun observeRingtones(): Flow<List<RingtoneEntity>>

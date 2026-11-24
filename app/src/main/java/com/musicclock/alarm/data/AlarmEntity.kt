@@ -8,6 +8,11 @@ enum class ScheduleType {
     WEEKLY,
 }
 
+enum class RingStopMode {
+    DURATION,
+    PLAY_COUNT,
+}
+
 @Entity(tableName = "alarms")
 data class AlarmEntity(
     @PrimaryKey(autoGenerate = true)
@@ -22,5 +27,8 @@ data class AlarmEntity(
     val ringtoneId: Long? = null,
     val vibrationEnabled: Boolean = true,
     val snoozeEnabled: Boolean = true,
+    val ringStopMode: RingStopMode = RingStopMode.DURATION,
+    val ringDurationSeconds: Int = 300,
+    val ringLoopCount: Int = 1,
 )
 

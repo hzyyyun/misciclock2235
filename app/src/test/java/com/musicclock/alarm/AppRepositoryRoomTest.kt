@@ -58,6 +58,7 @@ class AppRepositoryRoomTest {
         val second = repository.scheduleOccurrence(alarmId, 2_000L)
 
         val claimedFirst = repository.claimOccurrence(first.id)
+        now = 2_000L
         val claimedSecond = repository.claimOccurrence(second.id)
 
         assertThat(claimedFirst?.state).isEqualTo(OccurrenceState.RINGING)
@@ -131,6 +132,7 @@ class AppRepositoryRoomTest {
 
     @Test
     fun ringingOccurrenceCannotBeClaimedTwice() = runTest {
+        now = 5_000L
         val alarmId = repository.saveAlarm(
             AlarmEntity(
                 label = "起床",
@@ -164,13 +166,109 @@ class AppRepositoryRoomTest {
         assertThat(ringing.autoStopAtMillis).isEqualTo(15_000L)
 
         now = 12_000L
-        val recovered = repository.ensureRingTiming(ringing)
+        val recovered = requireNotNull(repository.ensureRingTiming(ringing))
         assertThat(recovered.autoStopAtMillis).isEqualTo(15_000L)
 
         repository.setOccurrenceState(occurrence.id, OccurrenceState.DISMISSED)
         val dismissed = requireNotNull(repository.getOccurrence(occurrence.id))
         assertThat(dismissed.ringStartedAtMillis).isNull()
         assertThat(dismissed.autoStopAtMillis).isNull()
+    }
+
+    @Test
+    fun futureOccurrenceCannotBeClaimed() = runTest {
+        now = 10_000L
+        val alarmId = repository.saveAlarm(
+            AlarmEntity(
+                label = "future",
+                hour = 6,
+                minute = 30,
+                scheduleType = ScheduleType.ONE_SHOT,
+                oneShotAtMillis = 50_000L,
+            ),
+        )
+        val occurrence = repository.scheduleOccurrence(alarmId, 50_000L)
+
+        assertThat(repository.claimOccurrence(occurrence.id)).isNull()
+        assertThat(repository.getOccurrence(occurrence.id)?.state)
+            .isEqualTo(OccurrenceState.SCHEDULED)
+    }
+
+    @Test
+    fun smallClockJitterWithinToleranceCanBeClaimed() = runTest {
+        now = 10_000L
+        val alarmId = repository.saveAlarm(
+            AlarmEntity(
+                label = "clock-jitter",
+                hour = 6,
+                minute = 30,
+                scheduleType = ScheduleType.ONE_SHOT,
+                oneShotAtMillis = 11_000L,
+            ),
+        )
+        val occurrence = repository.scheduleOccurrence(alarmId, 11_000L)
+
+        assertThat(repository.claimOccurrence(occurrence.id)?.state)
+            .isEqualTo(OccurrenceState.RINGING)
+    }
+
+    @Test
+    fun missingDeadlineIsMarkedMissedInsteadOfRestarted() = runTest {
+        now = 10_000L
+        val alarmId = repository.saveAlarm(
+            AlarmEntity(
+                label = "missing-deadline",
+                hour = 7,
+                minute = 0,
+                scheduleType = ScheduleType.ONE_SHOT,
+            ),
+        )
+        val occurrence = repository.scheduleOccurrence(alarmId, 5_000L).copy(
+            state = OccurrenceState.RINGING,
+        )
+        database.alarmDao().upsertOccurrence(occurrence)
+
+        assertThat(repository.ensureRingTiming(occurrence)).isNull()
+        assertThat(repository.getOccurrence(occurrence.id)?.state)
+            .isEqualTo(OccurrenceState.MISSED)
+    }
+
+    @Test
+    fun dismissClearsQueuedSameAlarmButKeepsFutureScheduleAndSnooze() = runTest {
+        now = 1_000L
+        val alarmId = repository.saveAlarm(
+            AlarmEntity(
+                label = "dismiss-scope",
+                hour = 7,
+                minute = 0,
+                scheduleType = ScheduleType.WEEKLY,
+                weekdaysMask = 0b1111111,
+            ),
+        )
+        val active = repository.scheduleOccurrence(alarmId, 1_000L)
+        val queued = repository.scheduleOccurrence(alarmId, 1_100L)
+        val nextWeek = repository.scheduleOccurrence(alarmId, 50_000L)
+        val snooze = repository.scheduleOccurrence(
+            alarmId = alarmId,
+            triggerAtMillis = 60_000L,
+            kind = OccurrenceKind.SNOOZE,
+            parentOccurrenceId = active.id,
+        )
+
+        requireNotNull(repository.claimOccurrence(active.id))
+        now = 1_100L
+        requireNotNull(repository.claimOccurrence(queued.id))
+
+        repository.dismissOccurrenceAndQueuedForAlarm(active.id, alarmId)
+
+        assertThat(repository.getOccurrence(active.id)?.state)
+            .isEqualTo(OccurrenceState.DISMISSED)
+        assertThat(repository.getOccurrence(queued.id)?.state)
+            .isEqualTo(OccurrenceState.DISMISSED)
+        assertThat(repository.getOccurrence(nextWeek.id)?.state)
+            .isEqualTo(OccurrenceState.SCHEDULED)
+        assertThat(repository.getOccurrence(snooze.id)?.state)
+            .isEqualTo(OccurrenceState.SCHEDULED)
     }
 }
 

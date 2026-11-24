@@ -19,11 +19,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AlarmOff
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Snooze
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -54,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.musicclock.alarm.data.ScheduleType
+import com.musicclock.alarm.ring.RingSessionStore
 import com.musicclock.alarm.ui.AlarmEditorViewModel
 import com.musicclock.alarm.ui.UiTestTags
 
@@ -64,6 +68,10 @@ fun AlarmEditorScreen(
     onBack: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val activeRing by RingSessionStore.state.collectAsStateWithLifecycle()
+    val ringingThisAlarm = activeRing?.takeIf {
+        state.alarmId > 0 && it.alarmId == state.alarmId
+    }
     var showTimePicker by remember { mutableStateOf(false) }
     var showRingtonePicker by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -141,26 +149,81 @@ fun AlarmEditorScreen(
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showTimePicker = true }
-                    .testTag(UiTestTags.EDITOR_TIME),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(
-                    modifier = Modifier.padding(vertical = 22.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        formatClock(state.hour, state.minute),
-                        fontSize = 56.sp,
-                        lineHeight = 60.sp,
-                        fontWeight = FontWeight.Light,
-                    )
-                    Text(
-                        "上下滚动选择时间",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Column {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showTimePicker = true }
+                            .testTag(UiTestTags.EDITOR_TIME)
+                            .padding(vertical = 22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            formatClock(state.hour, state.minute),
+                            fontSize = 56.sp,
+                            lineHeight = 60.sp,
+                            fontWeight = FontWeight.Light,
+                        )
+                        Text(
+                            "上下滚动选择时间",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    if (ringingThisAlarm != null) {
+                        HorizontalDivider()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            if (ringingThisAlarm.snoozeEnabled) {
+                                Button(
+                                    onClick = {
+                                        viewModel.snoozeRinging(ringingThisAlarm.occurrenceId)
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                        .testTag(UiTestTags.EDITOR_RING_SNOOZE),
+                                    shape = RoundedCornerShape(8.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Snooze,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("延时 5 分钟")
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.dismissRinging(ringingThisAlarm.occurrenceId)
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag(UiTestTags.EDITOR_RING_STOP),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error,
+                                ),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.AlarmOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text("停止响铃")
+                            }
+                        }
+                    }
                 }
             }
 

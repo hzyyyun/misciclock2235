@@ -10,6 +10,12 @@ class Converters {
     fun toScheduleType(value: String): ScheduleType = ScheduleType.valueOf(value)
 
     @TypeConverter
+    fun fromRingStopMode(value: RingStopMode): String = value.name
+
+    @TypeConverter
+    fun toRingStopMode(value: String): RingStopMode = RingStopMode.valueOf(value)
+
+    @TypeConverter
     fun fromOccurrenceKind(value: OccurrenceKind): String = value.name
 
     @TypeConverter

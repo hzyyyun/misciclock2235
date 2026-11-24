@@ -88,23 +88,45 @@ class AppRepository(
         }
     }
 
+    suspend fun dismissOccurrenceAndQueuedForAlarm(
+        occurrenceId: String,
+        alarmId: Long,
+    ) = claimMutex.withLock {
+        dao.dismissQueuedOccurrencesForAlarm(alarmId)
+        dao.updateOccurrenceState(occurrenceId, OccurrenceState.DISMISSED)
+        dao.clearOccurrenceRingTiming(occurrenceId)
+    }
+
+    suspend fun dismissQueuedForAlarm(alarmId: Long) {
+        dao.dismissQueuedOccurrencesForAlarm(alarmId)
+    }
+
+    suspend fun missAllRingingOccurrences() {
+        dao.missAllRingingOccurrences()
+    }
+
     suspend fun recoverRingingAsQueued() =
         dao.updateAllOccurrencesState(OccurrenceState.RINGING, OccurrenceState.QUEUED)
 
-    suspend fun claimOccurrence(id: String): OccurrenceEntity? = claimMutex.withLock {
+    suspend fun claimOccurrence(
+        id: String,
+        requestedDurationMillis: Long = ringDurationMillis,
+    ): OccurrenceEntity? = claimMutex.withLock {
         val occurrence = dao.getOccurrence(id) ?: return@withLock null
-        if (occurrence.state == OccurrenceState.DISMISSED ||
-            occurrence.state == OccurrenceState.SNOOZED ||
-            occurrence.state == OccurrenceState.MISSED ||
-            occurrence.state == OccurrenceState.RINGING
+        if (occurrence.state != OccurrenceState.SCHEDULED &&
+            occurrence.state != OccurrenceState.QUEUED
         ) {
             return@withLock null
         }
+
+        val now = clock()
+        if (!AlarmTimingPolicy.isDue(occurrence.triggerAtMillis, now)) return@withLock null
+
+        expireInvalidRingingLocked(now)
         val ringing = dao.getRingingOccurrence()
         val nextState = if (ringing == null) OccurrenceState.RINGING else OccurrenceState.QUEUED
         if (nextState == OccurrenceState.RINGING) {
-            val now = clock()
-            val deadline = now + ringDurationMillis
+            val deadline = now + requestedDurationMillis.coerceAtLeast(1_000L)
             dao.updateOccurrenceRingState(
                 id = occurrence.id,
                 state = nextState,
@@ -118,15 +140,20 @@ class AppRepository(
             )
         } else {
             dao.updateOccurrenceState(occurrence.id, nextState)
+            dao.clearOccurrenceRingTiming(occurrence.id)
             occurrence.copy(state = nextState)
         }
     }
 
-    suspend fun claimNextQueued(): OccurrenceEntity? = claimMutex.withLock {
+    suspend fun claimNextQueued(
+        requestedDurationMillis: Long = ringDurationMillis,
+    ): OccurrenceEntity? = claimMutex.withLock {
+        val now = clock()
+        expireInvalidRingingLocked(now)
         if (dao.getRingingOccurrence() != null) return@withLock null
         val occurrence = dao.getNextQueuedOccurrence() ?: return@withLock null
-        val now = clock()
-        val deadline = now + ringDurationMillis
+        if (!AlarmTimingPolicy.isDue(occurrence.triggerAtMillis, now)) return@withLock null
+        val deadline = now + requestedDurationMillis.coerceAtLeast(1_000L)
         dao.updateOccurrenceRingState(
             id = occurrence.id,
             state = OccurrenceState.RINGING,
@@ -140,26 +167,36 @@ class AppRepository(
         )
     }
 
-    suspend fun ensureRingTiming(occurrence: OccurrenceEntity): OccurrenceEntity {
-        if (occurrence.ringStartedAtMillis != null && occurrence.autoStopAtMillis != null) {
-            return occurrence
-        }
+    suspend fun ensureRingTiming(occurrence: OccurrenceEntity): OccurrenceEntity? {
+        if (occurrence.state != OccurrenceState.RINGING) return null
         val now = clock()
+        val deadline = occurrence.autoStopAtMillis
+        if (deadline == null || deadline <= now) {
+            dao.updateOccurrenceState(occurrence.id, OccurrenceState.MISSED)
+            dao.clearOccurrenceRingTiming(occurrence.id)
+            return null
+        }
         val startedAt = occurrence.ringStartedAtMillis
-            ?: occurrence.autoStopAtMillis?.minus(ringDurationMillis)
-            ?: now
-        val deadline = occurrence.autoStopAtMillis ?: (startedAt + ringDurationMillis)
+        if (startedAt != null) return occurrence
+
         dao.updateOccurrenceRingState(
             id = occurrence.id,
             state = OccurrenceState.RINGING,
-            ringStartedAtMillis = startedAt,
+            ringStartedAtMillis = now,
             autoStopAtMillis = deadline,
         )
         return occurrence.copy(
-            state = OccurrenceState.RINGING,
-            ringStartedAtMillis = startedAt,
+            ringStartedAtMillis = now,
             autoStopAtMillis = deadline,
         )
+    }
+
+    private suspend fun expireInvalidRingingLocked(now: Long) {
+        val ringing = dao.getRingingOccurrence() ?: return
+        val deadline = ringing.autoStopAtMillis
+        if (deadline != null && deadline > now) return
+        dao.updateOccurrenceState(ringing.id, OccurrenceState.MISSED)
+        dao.clearOccurrenceRingTiming(ringing.id)
     }
 }
 

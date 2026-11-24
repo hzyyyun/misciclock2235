@@ -8,8 +8,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -20,11 +18,6 @@ import com.musicclock.alarm.ui.screens.AlarmEditorScreen
 import com.musicclock.alarm.ui.screens.HomeScreen
 import com.musicclock.alarm.ui.screens.SettingsScreen
 import com.musicclock.alarm.ui.theme.MusicClockTheme
-import com.musicclock.alarm.MusicClockApplication
-import com.musicclock.alarm.ring.AlarmRingService
-import android.content.Intent
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,17 +29,6 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background,
                 ) {
                     MusicClockApp()
-                }
-            }
-        }
-        lifecycleScope.launch(Dispatchers.IO) {
-            val container = (application as MusicClockApplication).container
-            if (container.repository.getRingingOccurrence() != null) {
-                runCatching {
-                    ContextCompat.startForegroundService(
-                        this@MainActivity,
-                        Intent(this@MainActivity, AlarmRingService::class.java),
-                    )
                 }
             }
         }

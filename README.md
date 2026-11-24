@@ -6,9 +6,9 @@
 
 Android 9.0 及以上设备可直接下载 debug 测试版：
 
-- [直接下载 APK](https://github.com/hzyyyun/misciclock2235/releases/download/v1.1.0-debug/MusicClock-1.1.0-debug.apk)
-- [查看 GitHub 预发布页面](https://github.com/hzyyyun/misciclock2235/releases/tag/v1.1.0-debug)
-- [Release 说明](docs/RELEASE_NOTES_v1.1.0-debug.md)
+- [直接下载 APK](https://github.com/hzyyyun/misciclock2235/releases/download/v1.1.1-debug/MusicClock-1.1.1-debug.apk)
+- [查看 GitHub 预发布页面](https://github.com/hzyyyun/misciclock2235/releases/tag/v1.1.1-debug)
+- [Release 说明](docs/RELEASE_NOTES_v1.1.1-debug.md)
 
 该版本使用 debug 签名。蓝牙耳机连接播放、断连静音和无耳机播放已在真机通过基础验证，
 但有线耳机及完整硬件矩阵尚未完成，因此不应标记为正式稳定版。
@@ -16,14 +16,14 @@ Android 9.0 及以上设备可直接下载 debug 测试版：
 ## 当前交付
 
 - 完整 Kotlin / Jetpack Compose Android 工程。
-- 可安装 debug APK：`dist/MusicClock-1.1.0-debug.apk`。
+- 可安装 debug APK：`dist/MusicClock-1.1.1-debug.apk`。
 - Gradle 构建产物：`app/build/outputs/apk/debug/app-debug.apk`。
 - 产品需求：`docs/PRD.md`。
 - 技术设计：`docs/TECHNICAL_DESIGN.md`。
 - 权限说明：`docs/PERMISSIONS.md`。
 - 验收用例：`docs/ACCEPTANCE_TESTS.md`。
 - 模拟器验收：`docs/EMULATOR_TEST_REPORT.md`。
-- 已通过 18 个 JVM/Robolectric 测试、11 个 API 35 模拟器测试及 Android Lint。
+- 已通过 23 个 JVM/Robolectric 测试、15 个 API 35 模拟器测试及 Android Lint。
 
 ## 环境要求
 

@@ -99,6 +99,22 @@ class OccurrenceCalculatorTest {
         )
     }
 
+    @Test
+    fun oneShotAtKeepsTodayWhenAlarmIsLaterThatMorning() {
+        val now = LocalDateTime.of(2026, 11, 18, 0, 25).atZone(shanghai)
+
+        val next = OccurrenceCalculator.oneShotAt(
+            now.toInstant().toEpochMilli(),
+            6,
+            30,
+            shanghai,
+        )
+
+        assertThat(next).isEqualTo(
+            LocalDateTime.of(2026, 11, 18, 6, 30).atZone(shanghai).toInstant().toEpochMilli(),
+        )
+    }
+
     private fun weeklyAlarm(hour: Int, minute: Int, weekdaysMask: Int) = AlarmEntity(
         id = 1,
         label = "起床",

@@ -121,6 +121,10 @@ class AlarmNotifications(private val context: Context) {
         manager.notify(STATUS_NOTIFICATION_ID, status(title, message, occurrenceId))
     }
 
+    fun cancelStatus() {
+        manager.cancel(STATUS_NOTIFICATION_ID)
+    }
+
     fun canUseFullScreenIntent(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
             manager.canUseFullScreenIntent()
@@ -151,7 +155,7 @@ class AlarmNotifications(private val context: Context) {
         requestOffset: Int,
     ): PendingIntent {
         val intent = AlarmRingService.actionIntent(context, action, occurrenceId)
-        return PendingIntent.getService(
+        return PendingIntent.getForegroundService(
             context,
             occurrenceId.hashCode() * 31 + requestOffset,
             intent,

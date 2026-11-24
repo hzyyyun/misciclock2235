@@ -20,6 +20,8 @@ object UiTestTags {
     const val EDITOR_SAVE = "editor_save"
     const val EDITOR_DELETE = "editor_delete"
     const val EDITOR_IMPORT = "editor_import"
+    const val EDITOR_RING_SNOOZE = "editor_ring_snooze"
+    const val EDITOR_RING_STOP = "editor_ring_stop"
     const val SETTINGS_VOLUME = "settings_volume"
     const val RING_SNOOZE = "ring_snooze"
     const val RING_DISMISS = "ring_dismiss"

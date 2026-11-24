@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 data class RingUiState(
     val occurrenceId: String,
+    val alarmId: Long,
     val alarmLabel: String,
     val hour: Int,
     val minute: Int,

@@ -2,6 +2,7 @@ package com.musicclock.alarm.ui
 
 import android.app.Application
 import android.net.Uri
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -13,6 +14,7 @@ import com.musicclock.alarm.audio.RingtoneImporter
 import com.musicclock.alarm.data.AlarmEntity
 import com.musicclock.alarm.data.RingtoneEntity
 import com.musicclock.alarm.data.ScheduleType
+import com.musicclock.alarm.ring.AlarmRingService
 import java.time.ZoneId
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -156,6 +158,22 @@ class AlarmEditorViewModel(
                 }
             }
         }
+    }
+
+    fun snoozeRinging(occurrenceId: String) {
+        sendRingAction(AlarmRingService.ACTION_SNOOZE, occurrenceId)
+    }
+
+    fun dismissRinging(occurrenceId: String) {
+        sendRingAction(AlarmRingService.ACTION_DISMISS, occurrenceId)
+    }
+
+    private fun sendRingAction(action: String, occurrenceId: String) {
+        val application = getApplication<Application>()
+        ContextCompat.startForegroundService(
+            application,
+            AlarmRingService.actionIntent(application, action, occurrenceId),
+        )
     }
 
     fun save(onSaved: () -> Unit) {
